@@ -17,7 +17,7 @@ import os
 from django.conf import settings
 from plan.PeymentPEP import PasargadPaymentGateway
 from django.db import transaction
-
+from django.db.models import Q
 
 
 def get_name (uniqueIdentifier) :
@@ -34,7 +34,6 @@ def get_name (uniqueIdentifier) :
     else :
         full_name = 'نامشخص'
     return full_name
-        
 
 def get_name_user (uniqueIdentifier) :
     user = User.objects.filter(uniqueIdentifier=uniqueIdentifier).first()
@@ -53,7 +52,11 @@ def get_fname (uniqueIdentifier) :
 def get_lname (uniqueIdentifier) :
     user = User.objects.filter(uniqueIdentifier=uniqueIdentifier).first()
     privateperson = privatePerson.objects.filter(user=user).first()
-    last_name = privateperson.lastName
+    if privateperson :
+        last_name = privateperson.lastName
+    elif LegalPerson.objects.filter(user=user).first() :
+        legalperson = LegalPerson.objects.filter(user=user).first()
+        last_name = legalperson.companyName
     return last_name
 
 
@@ -603,7 +606,7 @@ class PaymentDocument(APIView):
         
         if user:
             user = user.first()
-            payments = PaymentGateway.objects.filter(plan=plan)
+            payments = PaymentGateway.objects.filter(plan=plan , status = '3')
             response = serializers.PaymentGatewaySerializer(payments,many=True)
             df = pd.DataFrame(response.data)
             if len(df)==0:
@@ -641,7 +644,7 @@ class PaymentDocument(APIView):
         payment = PaymentGateway.objects.filter(plan=plan ,id = payment_id)
         value = 0
         for i in payment : 
-            if i.status == True:
+            if i.status == '2' or i.status == '3':
                value += i.value
         information = InformationPlan.objects.filter(plan=plan ).first()
         information.amount_collected_now = value
@@ -922,7 +925,7 @@ class SendParticipationCertificateToFaraboursViewset(APIView):
         plan = Plan.objects.filter(trace_code = trace_code).first()
         if not plan :
             return Response({'error': 'plan not found '}, status=status.HTTP_400_BAD_REQUEST)
-        payment = PaymentGateway.objects.filter(plan=plan , status = True , send_farabours = False)
+        payment = PaymentGateway.objects.filter(plan=plan , status = '3' , send_farabours = False)
         if not payment :
             return Response({'error': 'payment not found'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1161,10 +1164,6 @@ class TransmissionViewset(APIView) :
         full_name = get_name(user.uniqueIdentifier)
         
         pep = PasargadPaymentGateway()
-        try:
-            pep.get_token()
-        except:
-            pass # پرداخت ناموفق 
         invoice_data = {
             'invoice' : pep.generator_invoice_number(),
             'invoiceDate': pep.generator_date(),
@@ -1175,7 +1174,7 @@ class TransmissionViewset(APIView) :
             invoice  = invoice_data['invoice'],
             invoiceDate = invoice_data['invoiceDate'],
             amount = value ,
-            callback_url = 'http://localhost:3030/paymentresult/',
+            callback_url = os.getenv('callback_url'),
             mobile_number = user.mobile,
             service_code =  '8' ,
             payerName = full_name,
@@ -1192,7 +1191,7 @@ class TransmissionViewset(APIView) :
             description = invoice_data['description'],
             code = None,
             risk_statement = True,
-            status = True,
+            status = '2',
             document = False,
             picture = None , 
             send_farabours = True,
@@ -1223,8 +1222,7 @@ class TransmissionViewset(APIView) :
             return Response({'error': 'payment not found '}, status=status.HTTP_400_BAD_REQUEST)
         payment.status = True
         payment.save()
-        pep.get_token()
-        payment_value = PaymentGateway.objects.filter(plan=payment.plan, status = True)
+        payment_value = PaymentGateway.objects.filter(plan=payment.plan).filter(Q(status='2') | Q(status='3'))
         serializer = serializers.PaymentGatewaySerializer(payment_value , many = True)
         payment_value = pd.DataFrame(serializer.data)
         payment_value = payment_value['value'].sum()
@@ -1239,8 +1237,6 @@ class TransmissionViewset(APIView) :
         except :
             return Response({'error':'payment not found '}, status=status.HTTP_400_BAD_REQUEST)
         return Response(True , status=status.HTTP_200_OK)
-
-
 
 
 class RoadMapViewset(APIView) :

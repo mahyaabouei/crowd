@@ -59,6 +59,7 @@ class PasargadPaymentGateway:
         :raises: Exception در صورت عدم موفقیت در ایجاد تراکنش خرید
         :returns: آدرس پرداختی تولید شده توسط سرور
         """
+        self.get_token()
         if not self.token:
             raise Exception("Token is required. Please call get_token() first.")
         
@@ -83,6 +84,7 @@ class PasargadPaymentGateway:
         else:
             raise Exception(f"Error creating purchase: {response.json()}")
 
+
     def confirm_transaction(self, invoice, url_id):
         """
         تأیید تراکنش خرید پس از پرداخت کاربر.
@@ -92,6 +94,7 @@ class PasargadPaymentGateway:
         :raises: Exception در صورت عدم موفقیت در تأیید تراکنش
         :returns: اطلاعات تراکنش تأیید شده
         """
+        self.get_token()
         if not self.token:
             raise Exception("Token is required. Please call get_token() first.")
         

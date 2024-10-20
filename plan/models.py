@@ -142,7 +142,13 @@ class PaymentGateway(models.Model) :
     create_date =  models.DateTimeField(null=True, blank=True, default=timezone.now) # تاریخ ایجاد مشارکت 
     risk_statement = models.BooleanField(default=True) # بیانیه ریسک
     name_status = models.BooleanField (default=False)
-    status =  models.BooleanField (default=False)
+    status_option = [
+         ('0','0'), #رد شده
+         ('1','1'), #در حال بررسی
+         ('2','2'), #تایید موقت
+         ('3','3'), #تایید نهایی
+    ]
+    status =  models.CharField (max_length=10 , choices= status_option , default='1' )
     document =  models.BooleanField (default=True)
     picture = models.FileField(null=True, blank = True  , upload_to='static/')
     send_farabours = models.BooleanField (default=False)

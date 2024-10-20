@@ -11,7 +11,7 @@ urlpatterns = [
     path('documentation/<str:trace_code>/', DocumentationViewset.as_view(), name='documentation-admin'),
     path('comment/user/<str:trace_code>/', CommentViewset.as_view(), name='comment-user'),
     path('comment/admin/<str:trace_code>/', CommentAdminViewset.as_view(), name='comment-admin'),
-    path('payment/document/<str:trace_code>/', PaymentDocument.as_view(), name='payment-admin'),
+    path('payment/document/<str:trace_code>/', PaymentDocument.as_view(), name='payment-admin'), # مشخصات سرمایه گذران 
     path('payment/user/<str:trace_code>/', PaymentUser.as_view(), name='payment-user'),
     path('certificate/user/<str:trace_code>/', Certificate.as_view(), name='participant-user'),
     path('participant/user/<str:trace_code>/', ParticipantViewset.as_view(), name='participant-user'),
@@ -20,7 +20,7 @@ urlpatterns = [
     path('send/payment/farabours/admin/<str:trace_code>/', SendPaymentToFarabours.as_view(), name='send-payment-farabours-admin'),
     path('send/participation/certificate/farabours/admin/<str:trace_code>/', SendParticipationCertificateToFaraboursViewset.as_view(), name='send-participation-certificate-farabours-admin'),
     path('read/exel/shareholder/admin/<str:key>/', ShareholdersListExelViewset.as_view(), name='exel-shareholders-admin'),
-    path('warranty/admin/<str:key>/', WarrantyAdminViewset.as_view(), name='warranty-admin'),
-    path('transmission/user/<str:key>/', TransmissionViewset.as_view(), name='transmission-user'),
+    path('warranty/admin/<str:key>/', WarrantyAdminViewset.as_view(), name='warranty-admin'), #  ضمانت نامه
+    path('transmission/user/<str:key>/', TransmissionViewset.as_view(), name='transmission-user'), # درگاه پرداخت
 
 ]

@@ -673,6 +673,20 @@ class RiskCommitteeViewset(APIView) :
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response ({'error': 'Cart not found'}, status.HTTP_400_BAD_REQUEST)
 
+    def get (self, request, id) :
+        Authorization = request.headers.get('Authorization')
+        if not Authorization:
+            return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
+        admin = fun.decryptionadmin(Authorization)
+        if not admin:
+            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+        admin = admin.first()
+        cart = models.Cart.objects.filter(id=id).first()
+        if not cart:
+            return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
+        risk_committee = cart.risk_committee
+        return Response({'risk_committee': risk_committee}, status=status.HTTP_200_OK)
+            
 
 # done
 # اپدیت کمیته ارزیابی
@@ -696,3 +710,21 @@ class EvaluationCommitteeViewset(APIView) :
             serializer.save()  
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response ({'error': 'Cart not found'}, status.HTTP_400_BAD_REQUEST)
+    
+
+
+
+    def get (self, request, id) :
+        Authorization = request.headers.get('Authorization')
+        if not Authorization:
+            return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
+        admin = fun.decryptionadmin(Authorization)
+        if not admin:
+            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+        admin = admin.first()
+        cart = models.Cart.objects.filter(id=id).first()
+        if not cart:
+            return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
+        evaluation_committee = cart.evaluation_committee
+        return Response({'evaluation_committee': evaluation_committee}, status=status.HTTP_200_OK)
+            

@@ -8,10 +8,15 @@ from investor import models
 import datetime
 from django.utils import timezone
 from investor.time import get_date_from_request
+from django.http import JsonResponse
+from django_ratelimit.decorators import ratelimit   
+from django.utils.decorators import method_decorator
+
 
 
 # done
 class ManagerViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self , request , id ):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -35,7 +40,7 @@ class ManagerViewset(APIView) :
         serializer = serializers.CartWithManagersSerializer(cart)
         return Response({'message': True, 'data': serializer.data}, status=status.HTTP_200_OK)
     
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request , id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -55,6 +60,7 @@ class ManagerViewset(APIView) :
 
 # done
 class ManagerAdminViewset(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -70,7 +76,7 @@ class ManagerAdminViewset(APIView):
         managers = Manager.objects.filter(cart=cart)
         serializer = serializers.ManagerSerializer(managers, many=True)
         return Response({'message': True ,  'data': serializer.data }, status=status.HTTP_200_OK)
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request, id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -117,6 +123,7 @@ class ManagerAdminViewset(APIView):
 
 # done
 class ResumeViewset(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -151,7 +158,7 @@ class ResumeViewset(APIView):
             serializer.save()        
         return Response({'success' : True}, status=status.HTTP_200_OK)
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -188,6 +195,7 @@ class ResumeViewset(APIView):
 
 # done
 class ResumeAdminViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self, request,id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -220,7 +228,7 @@ class ResumeAdminViewset(APIView) :
             resume_list.append({'national_code': national_code,'lock': lock,'file': file,'name':name})
 
         return Response({'manager': resume_list}, status=status.HTTP_200_OK)
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request, id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -284,6 +292,7 @@ class ResumeAdminViewset(APIView) :
 
 # done
 class ShareholderViewset(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request,id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -313,7 +322,7 @@ class ShareholderViewset(APIView):
 
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self, request , id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -333,6 +342,7 @@ class ShareholderViewset(APIView):
 
 # done
 class ShareholderAdminViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self, request, id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -349,7 +359,7 @@ class ShareholderAdminViewset(APIView) :
         serializer = serializers.ShareholderSerializer(shareholder, many=True)
         return Response({'message': True ,  'data': serializer.data }, status=status.HTTP_200_OK)
 
-    
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self,request,id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -382,6 +392,7 @@ class ShareholderAdminViewset(APIView) :
 
 # done
 class ValidationViewset (APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request, id):
         try:
             Authorization = request.headers.get('Authorization')
@@ -462,11 +473,10 @@ class ValidationViewset (APIView) :
             return Response({'data': response_data}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f"An error occurred: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self, request, id):
         try:
             Authorization = request.headers.get('Authorization')
@@ -537,6 +547,7 @@ class ValidationViewset (APIView) :
 
 # done
 class ValidationAdminViewset (APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self, request, id) :
         try :
             Authorization = request.headers.get('Authorization')
@@ -649,7 +660,7 @@ class ValidationAdminViewset (APIView) :
 
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self, request, id) :
         try :
             Authorization = request.headers.get('Authorization')
@@ -711,6 +722,7 @@ class ValidationAdminViewset (APIView) :
 
 # done
 class HistoryViewset (APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self, request, id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -759,7 +771,7 @@ class HistoryViewset (APIView) :
 
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self, request, id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -809,6 +821,7 @@ class HistoryViewset (APIView) :
 
 # done
 class HistoryAdminViewset (APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request, id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -878,7 +891,7 @@ class HistoryAdminViewset (APIView) :
 
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self, request, id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:

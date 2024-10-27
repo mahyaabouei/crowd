@@ -18,6 +18,10 @@ from django.conf import settings
 from plan.PeymentPEP import PasargadPaymentGateway
 from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
+from django_ratelimit.decorators import ratelimit   
+from django.utils.decorators import method_decorator
+
 
 
 def get_name (uniqueIdentifier) :
@@ -32,7 +36,7 @@ def get_name (uniqueIdentifier) :
         legalperson = LegalPerson.objects.filter(user=user).first()
         full_name = legalperson.companyName
     else :
-        full_name = 'نامشخص'
+        full_name = 'N/A'
     return full_name
 
 def get_name_user (uniqueIdentifier) :
@@ -92,19 +96,42 @@ def check_legal_person(uniqueIdentifier) :
 # done
 # detial + information
 class PlanViewset(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self, request, trace_code):
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
             return Response({'message': 'Plan not found'}, status=status.HTTP_404_NOT_FOUND)
         plan_serializer = serializers.PlanSerializer(plan)
-        
+        board_members_list = []
         board_members = ListOfProjectBoardMembers.objects.filter(plan=plan)
         if board_members.exists():
             board_members_serializer = serializers.ListOfProjectBoardMembersSerializer(board_members, many=True)
+            for i in board_members_serializer.data :
+                member_data = {
+                'plan' : i['plan'],
+                'first_name' : i['first_name'],
+                'last_name' : i['last_name'],
+                'organization_post_description' : i['organization_post_description'],
+                'company_name' : i['company_name'],
+                'company_national_id' : i['company_national_id'],
+                'is_agent_from_company' : i['is_agent_from_company'],
+                'organization_post_id' : i['organization_post_id'],
+                }
+                board_members_list.append(member_data)
         shareholder = ListOfProjectBigShareHolders.objects.filter(plan=plan)
         if shareholder.exists():
             shareholder_serializer = serializers.ListOfProjectBigShareHoldersSerializer(shareholder, many=True)
-        
+            shareholder_list = []
+            for j in shareholder_serializer.data :
+                shareholder_data = {
+                    'share_percent' : j['share_percent'],
+                    'first_name' : j['first_name'],
+                    'last_name' : j['last_name'],
+                    'shareholder_type' : j['shareholder_type'],
+                    'plan' : j['plan'],
+                    }
+                
+                shareholder_list.append(shareholder_data)
         picture_plan = PicturePlan.objects.filter(plan=plan).first()
         picture_plan = serializers.PicturePlanSerializer(picture_plan)
         company = ProjectOwnerCompan.objects.filter(plan=plan)
@@ -113,15 +140,20 @@ class PlanViewset(APIView):
 
         response_data = {
             'plan': plan_serializer.data ,
-            'board_member' : board_members_serializer.data , 
-            'shareholder' : shareholder_serializer.data,
+            'board_member' :board_members_list , 
+            'shareholder' : shareholder_list,
             'company': company_serializer.data,
             'picture_plan': picture_plan.data,
         }
         information = InformationPlan.objects.filter(plan=plan).first()
         if information:
             information_serializer = serializers.InformationPlanSerializer(information)
+            date_start = information.payment_date
+            if isinstance(date_start, str):
+                date_start = datetime.datetime.strptime(date_start, '%Y-%m-%dT%H:%M:%S')     
             response_data['information_complete'] = information_serializer.data
+            response_data['date_start'] = date_start
+
         end_of_fundraising = EndOfFundraising.objects.filter(plan=plan)
         if end_of_fundraising :
             try:
@@ -134,7 +166,6 @@ class PlanViewset(APIView):
                     date_jalali = JalaliDate.to_jalali(date)
                     date_jalali =str(date_jalali)
                     date_profit.append({'type': type, 'date': date_jalali})
-
                 response_data['date_profit'] = date_profit
             except :
                 response_data['date_profit'] = []
@@ -146,6 +177,7 @@ class PlanViewset(APIView):
 # list + information
 # update
 class PlansViewset(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self, request):
         plans = Plan.objects.all()
         result = []
@@ -157,15 +189,39 @@ class PlansViewset(APIView):
             shareholder = ListOfProjectBigShareHolders.objects.filter(plan=plan)  
             plan_serializer = serializers.PlanSerializer(plan)
             board_members_serializer = serializers.ListOfProjectBoardMembersSerializer(board_members, many=True)
+            board_members_list = []
+            for i in board_members_serializer.data :
+                member_data = {
+                'plan' : i['plan'],
+                'first_name' : i['first_name'],
+                'last_name' : i['last_name'],
+                'organization_post_description' : i['organization_post_description'],
+                'company_name' : i['company_name'],
+                'company_national_id' : i['company_national_id'],
+                'is_agent_from_company' : i['is_agent_from_company'],
+                'organization_post_id' : i['organization_post_id'],
+                }
+                board_members_list.append(member_data)
             shareholder_serializer = serializers.ListOfProjectBigShareHoldersSerializer(shareholder, many=True)
+            shareholder_list = []
+            for j in shareholder_serializer.data :
+                shareholder_data = {
+                    'share_percent' : j['share_percent'],
+                    'first_name' : j['first_name'],
+                    'last_name' : j['last_name'],
+                    'shareholder_type' : j['shareholder_type'],
+                    'plan' : j['plan'],
+                    }
+                
+                shareholder_list.append(shareholder_data)
             company_serializer = serializers.ProjectOwnerCompansSerializer(company, many=True)
             picture_plan = PicturePlan.objects.filter(plan=plan).first()
             picture_plan = serializers.PicturePlanSerializer(picture_plan)
         
             data = {
                 'plan': plan_serializer.data,
-                'board_members': board_members_serializer.data , 
-                'shareholder': shareholder_serializer.data  ,
+                'board_members': board_members_list , 
+                'shareholder': shareholder_list  ,
                 'company': company_serializer.data  ,
                 'picture_plan': picture_plan.data
             }
@@ -175,6 +231,7 @@ class PlansViewset(APIView):
             result.append(data)
 
         return Response(result, status=status.HTTP_200_OK)
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
     def patch(self, request):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -247,6 +304,7 @@ class PlansViewset(APIView):
                     'sum_of_funding_provided': plan_detail.get('SumOfFundingProvided', None)
                 }
             )
+            print()
 
 
             if len(plan_detail.get('Project Owner Company', [])) > 0:
@@ -311,6 +369,7 @@ class PlansViewset(APIView):
 # done
 
 class AppendicesViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -331,7 +390,7 @@ class AppendicesViewset(APIView) :
         serializer.save(plan=plan)
         return Response (serializer.data, status=status.HTTP_200_OK)
     
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
@@ -341,7 +400,7 @@ class AppendicesViewset(APIView) :
             return Response({'error': 'Appendices not found'}, status=status.HTTP_404_NOT_FOUND)
         serializer = serializers.AppendicesSerializer(appendices, many= True)
         return Response(serializer.data , status=status.HTTP_200_OK)
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='DELETE', block=True))
     def delete(self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -358,6 +417,7 @@ class AppendicesViewset(APIView) :
     
 # done
 class DocumentationViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -380,7 +440,7 @@ class DocumentationViewset(APIView) :
 
         serializer.save(plan=plan)
         return Response ({'data' : serializer.data} , status=status.HTTP_200_OK)
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
 
         plan = Plan.objects.filter(trace_code=trace_code).first()
@@ -389,7 +449,7 @@ class DocumentationViewset(APIView) :
         ducumentation = DocumentationFiles.objects.filter(plan=plan)
         serializer = serializers.DocumentationSerializer(ducumentation, many= True)
         return Response(serializer.data , status=status.HTTP_200_OK)
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='DELETE', block=True))
     def delete(self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -405,6 +465,7 @@ class DocumentationViewset(APIView) :
         return Response({'message':'succses'} , status=status.HTTP_200_OK)
 # done
 class CommentAdminViewset (APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -425,7 +486,7 @@ class CommentAdminViewset (APIView) :
 
         serializer = serializers.CommenttSerializer(comments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
     def patch (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -447,6 +508,7 @@ class CommentAdminViewset (APIView) :
 
 # done
 class CommentViewset (APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -459,17 +521,12 @@ class CommentViewset (APIView):
         if not plan:
             return Response({'error': 'plan not found'}, status=status.HTTP_404_NOT_FOUND)
         data = request.data
-        comment = Comment.objects.create(plan=plan , user=user)
-        if not comment:
-            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
-        if not data.get('answer'):
-            data['answer'] = 'منتظر پاسخ'
-        serializer = serializers.CommenttSerializer(comment , data=data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
+        if not data.get('comment') or data.get('known'):
+            return Response({'error': 'Comment or known not found'}, status=status.HTTP_404_NOT_FOUND)
+        comment = Comment(plan=plan , user=user, known=data.get('known'),comment= data.get('comment'),answer='منتظر پاسخ')
+        comment.save()
+        return Response(status=status.HTTP_200_OK)
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -497,7 +554,7 @@ class CommentViewset (APIView):
 
 #done
 class SendpicturePlanViewset(APIView) :
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -519,7 +576,7 @@ class SendpicturePlanViewset(APIView) :
         return Response({'success': True, 'message': 'Picture updated successfully'}, status=status.HTTP_200_OK)
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
@@ -530,7 +587,9 @@ class SendpicturePlanViewset(APIView) :
 
 
 # done
+# محدودیت پرداخت به دلیل امنیت غیر فعال شد
 class PaymentDocument(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -539,12 +598,45 @@ class PaymentDocument(APIView):
         if not user:
             return Response({'error': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
+        legal_user = check_legal_person(user.uniqueIdentifier)
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
             return Response({'error': 'plan not found'}, status=status.HTTP_404_NOT_FOUND)
+        # information_plan = InformationPlan.objects.filter(plan=plan).first()
         if not request.data.get('amount'):
             return Response({'error': 'amount not found'}, status=status.HTTP_404_NOT_FOUND)
-        amount = int(request.data.get('amount'))
+        amount = int(request.data.get('amount')) # سهم درخواستی کاربر 
+        # amount_collected_now = information_plan.amount_collected_now # مبلغ جمه اوری شده تا به  الان
+        # plan_total_price = plan.total_units # کل سهم قابل عرضه برای طرح 
+        # purchaseable_amount = int(plan_total_price - amount_collected_now) # مبلغ قابل خرید همه کاربران 
+        # if amount > purchaseable_amount :
+        #     return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # if legal_user == True : 
+        #     amount_legal_min = plan.legal_person_minimum_availabe_price #حداقل سهم قابل خرید حقوقی 
+        #     amount_legal_max = plan.legal_person_maximum_availabe_price #حداکثر سهم قابل خرید حقوقی
+            
+        #     if amount_legal_min is not None and amount_legal_max is not None :
+        #         if amount < amount_legal_min or amount > amount_legal_max:
+        #             return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
+        #     else :
+        #         if amount > purchaseable_amount :
+        #             return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+                  
+                
+        # if legal_user == False :
+        #     amount_personal_min = plan.real_person_minimum_availabe_price  #حداقل سهم قابل خرید حقیقی
+        #     amount_personal_max = plan.real_person_maximum_available_price #حداکثر سهم قابل خرید حقیقی
+        #     if amount_personal_min is not None and amount_personal_max is not None:
+        #         if amount < amount_personal_min or amount > amount_personal_max :
+        #             return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        #     else :
+        #         if amount > purchaseable_amount :
+        #             return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+                  
+
+
         value = plan.unit_price * amount
         if not request.data.get('payment_id'):
             return Response({'error': 'payment_id not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -569,12 +661,13 @@ class PaymentDocument(APIView):
             payment_id = payment_id,
             description = description,
             name_status = name_status,
-            picture = picture
+            picture = picture,
+            
         )
         payment.save()
         return Response('success')
     
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -589,8 +682,6 @@ class PaymentDocument(APIView):
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
             return Response({'error': 'plan not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-
 
         if admin:
             admin = admin.first()
@@ -611,16 +702,13 @@ class PaymentDocument(APIView):
             df = pd.DataFrame(response.data)
             if len(df)==0:
                 return Response([], status=status.HTTP_200_OK)
-            if df['name_status'] is True :
-                df['fulname'] = [get_name(x) for x in df['user']]
-                df = df.to_dict('records')
-                return Response(df, status=status.HTTP_200_OK)
-            else :
-                df['fulname'] = [get_name_user(x) for x in df['user']]
-                df = df.to_dict('records')
-                return Response(df, status=status.HTTP_200_OK)
+            df['fullname'] = df.apply(lambda row: get_name(row['user']) if row['name_status'] else 'نامشخص', axis=1)
+            df = df[['amount','value','create_date','fullname']]
+            df = df.to_dict('records')
+            return Response(df, status=status.HTTP_200_OK)
+
             
-        
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
     def patch (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -652,6 +740,7 @@ class PaymentDocument(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class PaymentUser(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -670,6 +759,7 @@ class PaymentUser(APIView):
 
 # done
 class ParticipantViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self, request,trace_code):
         Authorization = request.headers.get('Authorization')
         if  Authorization:
@@ -682,14 +772,14 @@ class ParticipantViewset(APIView) :
         plan = Plan.objects.filter(trace_code = trace_code).first()
         if not plan :
             return Response ({'error': 'plan not found'}, status=status.HTTP_404_NOT_FOUND)
-        participant = PaymentGateway.objects.filter(plan=plan , status= True)
+        participant = PaymentGateway.objects.filter(plan=plan , status= '3')
         if not participant :
             return Response ({'error': 'participant not found'}, status=status.HTTP_404_NOT_FOUND)
         serializer = serializers.PaymentGatewaySerializer(participant , many= True)
         names = []
 
         df = pd.DataFrame(serializer.data)
-        df = df.drop(['picture', 'risk_statement', 'cart_number', 'code', 'description' , 'cart_hashpan'] , axis=1)
+        df = df.drop(['picture', 'risk_statement', 'cart_number', 'code', 'description'] , axis=1)
         for index, row in df.iterrows():
             
             if row['name_status'] == True or admin:
@@ -705,6 +795,7 @@ class ParticipantViewset(APIView) :
 
 
 class Certificate(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -727,8 +818,9 @@ class Certificate(APIView):
             pdf_file.write(participation.content)
         return Response({'url':f'/media/reports/{file_name}'},status=status.HTTP_200_OK)
 
-# done
+ 
 class InformationPlanViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -754,7 +846,7 @@ class InformationPlanViewset(APIView) :
         
 
         return Response(serializer.data, status=status.HTTP_200_OK)
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self,request,trace_code) : 
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan :
@@ -765,8 +857,10 @@ class InformationPlanViewset(APIView) :
 
 
 
+
 #done
 class EndOfFundraisingViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -778,6 +872,13 @@ class EndOfFundraisingViewset(APIView) :
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan :
             return Response({'error': 'Invalid plan status'}, status=status.HTTP_400_BAD_REQUEST)
+        information = InformationPlan.objects.filter(plan=plan).first()
+        if not information:
+            return Response({'error': 'information plan not found'}, status=status.HTTP_404_NOT_FOUND)
+        date_payement = information.payment_date
+        if isinstance(date_payement, str):
+            date_payement = datetime.datetime.strptime(date_payement, '%Y-%m-%dT%H:%M:%S')
+           
         all_end_fundraising = []
         end_fundraising = EndOfFundraising.objects.filter(plan=plan)
         if not end_fundraising :
@@ -809,13 +910,10 @@ class EndOfFundraisingViewset(APIView) :
 
         serializer = serializers.EndOfFundraisingSerializer(updated_items, many=True, partial=True)
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({'date_payement' : serializer.data , 'date_start' : date_payement}, status=status.HTTP_200_OK)
 
 
-
-
-
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self,request,trace_code) : 
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -827,10 +925,18 @@ class EndOfFundraisingViewset(APIView) :
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan :
             return Response({'error': 'Invalid plan status'}, status=status.HTTP_400_BAD_REQUEST)
+        information = InformationPlan.objects.filter(plan=plan).first()
+        if not information:
+            return Response({'error': 'information plan not found'}, status=status.HTTP_404_NOT_FOUND)
+        date_payement = information.payment_date
+        if isinstance(date_payement, str):
+            date_payement = datetime.datetime.strptime(date_payement, '%Y-%m-%dT%H:%M:%S')
+            
         end_fundraising = EndOfFundraising.objects.filter(plan=plan)
         if end_fundraising.exists():
             serializer = serializers.EndOfFundraisingSerializer(end_fundraising , many = True).data
-            return Response(serializer, status=status.HTTP_200_OK)
+
+            return Response({'date_payments' : serializer ,'date_start' :  date_payement}, status=status.HTTP_200_OK)
         if not end_fundraising.exists():
             all_end_fundraising = []
             amount_fundraising = plan.sum_of_funding_provided
@@ -838,10 +944,7 @@ class EndOfFundraisingViewset(APIView) :
                 amount_fundraising = amount_fundraising / 4
             else:
                 amount_fundraising = 0
-            information = InformationPlan.objects.filter(plan=plan).first()
-
-            if not information:
-                return Response({'error': 'information plan not found'}, status=status.HTTP_404_NOT_FOUND)
+            
             date = information.payment_date
             if date is None :
                 return Response({'error': 'payment date not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -881,10 +984,13 @@ class EndOfFundraisingViewset(APIView) :
             
             all_end_fundraising.append(end_fundraising_total)
             serializer = serializers.EndOfFundraisingSerializer(all_end_fundraising, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+
+            return Response({'date_payments' : serializer.data, 'date_start' : date_payement}, status=status.HTTP_200_OK)
+        
 
 # done
 class SendPaymentToFarabours(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -914,6 +1020,7 @@ class SendPaymentToFarabours(APIView) :
 
 # done
 class SendParticipationCertificateToFaraboursViewset(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request, trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -972,6 +1079,7 @@ class SendParticipationCertificateToFaraboursViewset(APIView):
 # done
 # save payment exel
 class ShareholdersListExelViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self, request, key):
         key_value = 'mahya1234'
         url_key = key  
@@ -1011,9 +1119,9 @@ class ShareholdersListExelViewset(APIView) :
                         value =  row['مبلغ سفارش'],
                         payment_id =  row['شناسه سفارش'],
                         document = document,
-                        create_date =  None,
+                        # create_date =  None,
                         risk_statement = True,
-                        status =  True,
+                        status =  '3',
                         send_farabours = True,
                         name_status = False,
                     )
@@ -1039,6 +1147,7 @@ class ShareholdersListExelViewset(APIView) :
 # done
 # ضمانت نامه
 class WarrantyAdminViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self, request  ,*args, **kwargs) :
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
@@ -1072,7 +1181,8 @@ class WarrantyAdminViewset(APIView) :
         serializer = serializers.WarrantySerializer (warranties , many = True)
 
         return Response (serializer.data ,  status= status.HTTP_200_OK)
-
+    
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self, request  ,*args, **kwargs) :
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
@@ -1088,7 +1198,8 @@ class WarrantyAdminViewset(APIView) :
         warranties = Warranty.objects.filter(plan=plan)
         serializer = serializers.WarrantySerializer (warranties , many = True)
         return Response (serializer.data ,  status= status.HTTP_200_OK)
-
+    
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
     def patch (self,request , *args, **kwargs):
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
@@ -1123,7 +1234,7 @@ class WarrantyAdminViewset(APIView) :
             return Response(serializer.data ,  status= status.HTTP_200_OK)
         return Response ({'message': 'update is not succsesfuly'} ,  status=status.HTTP_400_BAD_REQUEST  )
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='DELETE', block=True))
     def delete (self, request, *args, **kwargs):
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
@@ -1148,7 +1259,9 @@ class WarrantyAdminViewset(APIView) :
 
 # done
 # درگاه بانکی
+# محدودیت پرداخت به دلیل امنیت غیر فعال شد
 class TransmissionViewset(APIView) : 
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self,request ,*args, **kwargs):
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
@@ -1158,8 +1271,45 @@ class TransmissionViewset(APIView) :
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
+        # legal_user = check_legal_person(user.uniqueIdentifier)
+
         plan = Plan.objects.filter(trace_code=trace_code).first()
-        value = request.data.get('amount')
+        # information_plan = InformationPlan.objects.filter(plan=plan).first()
+
+
+        value = request.data.get('amount')  # مبلغ درخواستی کاربر برای خرید 
+        # amount_collected_now = information_plan.amount_collected_now # مبلغ جمه اوری شده تا به  الان
+        # plan_total_price = plan.total_units # کل سهم قابل عرضه برای طرح 
+        # purchaseable_amount = int(plan_total_price - amount_collected_now) # مبلغ قابل خرید همه کاربران 
+
+        # if value > purchaseable_amount :
+        #     return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # if legal_user == True : 
+        #     amount_legal_min = plan.legal_person_minimum_availabe_price #حداقل سهم قابل خرید حقوقی 
+        #     amount_legal_max = plan.legal_person_maximum_availabe_price #حداکثر سهم قابل خرید حقوقی
+            
+        #     if amount_legal_min is not None and amount_legal_max is not None :
+        #         if value < amount_legal_min or value > amount_legal_max:
+        #             return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
+        #     else :
+        #         if value > purchaseable_amount :
+        #             return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+                  
+                
+        # else :
+        #     amount_personal_min = plan.real_person_minimum_availabe_price  #حداقل سهم قابل خرید حقیقی
+        #     amount_personal_max = plan.real_person_maximum_available_price #حداکثر سهم قابل خرید حقیقی
+        #     if amount_personal_min is not None and amount_personal_max is not None :
+        #         if value < amount_personal_min or value > amount_personal_max :
+        #             return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        #     else :
+        #         if value > purchaseable_amount :
+        #             return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+                  
+
+            
         user = User.objects.filter(uniqueIdentifier = user).first()
         full_name = get_name(user.uniqueIdentifier)
         
@@ -1169,7 +1319,7 @@ class TransmissionViewset(APIView) :
             'invoiceDate': pep.generator_date(),
             'description': 'تست'
             
-        }
+        }  
         created = pep.create_purchase(
             invoice  = invoice_data['invoice'],
             invoiceDate = invoice_data['invoiceDate'],
@@ -1191,7 +1341,7 @@ class TransmissionViewset(APIView) :
             description = invoice_data['description'],
             code = None,
             risk_statement = True,
-            status = '2',
+            status = '1',
             document = False,
             picture = None , 
             send_farabours = True,
@@ -1206,6 +1356,7 @@ class TransmissionViewset(APIView) :
 
         return Response({'url' : created['url'] }, status=status.HTTP_200_OK)
     
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     @transaction.atomic
     def get (self,request,*args, **kwargs):
         Authorization = request.headers.get('Authorization')
@@ -1238,8 +1389,50 @@ class TransmissionViewset(APIView) :
             return Response({'error':'payment not found '}, status=status.HTTP_400_BAD_REQUEST)
         return Response(True , status=status.HTTP_200_OK)
 
+# فیش بانکی های کاربر
+class BankReceiptViewset(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    def get (self,request,id):
+        Authorization = request.headers.get('Authorization')
+        if not Authorization:
+            return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
+        admin = fun.decryptionadmin(Authorization)
+        if not admin:
+            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+        admin = admin.first()
+        payment = PaymentGateway.objects.filter (id=id)
+        serializer = serializers.PaymentGatewaySerializer(payment , many = True)
+        
+        return Response (serializer.data,status=status.HTTP_200_OK)
 
+# گواهی مشارکت منو 
+class ParticipantMenuViewset(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    def get (self,request):
+        Authorization = request.headers.get('Authorization')
+        if not Authorization:
+            return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
+        user = fun.decryptionUser(Authorization)
+        if not user:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        user = user.first()
+        payment = PaymentGateway.objects.filter(user=user, send_farabours =True)
+        serializer = serializers.PaymentGatewaySerializer(payment,many = True)
+        plans = []
+        for i in serializer.data :
+            plan = i['plan']
+            plan = Plan.objects.filter(id=plan).first()
+            if plan:
+                if plan not in plans:
+                    plans.append(plan) 
+        plan_serializer = serializers.PlanSerializer(plans, many=True)
+        return Response (plan_serializer.data,status=status.HTTP_200_OK)
+    
+    
+
+    
 class RoadMapViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -1268,13 +1461,6 @@ class RoadMapViewset(APIView) :
         
 
         return Response({'data': list}, status=status.HTTP_200_OK)
-
-
-
-
-
-
-
 
 
 

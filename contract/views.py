@@ -17,11 +17,16 @@ from bidi.algorithm import get_display
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from .utilti import ContarctCreator
+from django.http import JsonResponse
+from django_ratelimit.decorators import ratelimit   
+from django.utils.decorators import method_decorator
+
 
 
 # انتخاب مدیران شرکت برای حق امضا توسط ادمین
 # done
 class SignatureViewset (APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -46,6 +51,7 @@ class SignatureViewset (APIView):
 # فعال کردن وضعیت حق امضای مدیران مشتری توسط ادمین
 # done
 class SetSignatureViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -66,6 +72,7 @@ class SetSignatureViewset(APIView) :
         return Response ({'success': True}, status=status.HTTP_200_OK)
     
 # لیست مدیران مشتری که حق امضای فعال دارند براساس کارت منتخب 
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self,request,id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -95,6 +102,7 @@ class SetSignatureViewset(APIView) :
 # وارد کردن اطلاعات قرارداد عاملیت توسط ادمین
 # done
 class SetCartAdminViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -122,7 +130,7 @@ class SetCartAdminViewset(APIView) :
         serializer = serializers.CartSerializer(cart)
         
         return Response ({'success': True , 'cart' : serializer.data}, status=status.HTTP_200_OK)
-    
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,id) : 
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -145,6 +153,7 @@ class SetCartAdminViewset(APIView) :
 # وارد کردن اطلاعات قرارداد عاملیت توسط مشتری
 # done
 class SetCartUserViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -175,6 +184,7 @@ class SetCartUserViewset(APIView) :
 
 
 class PdfViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def post(self, request,id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:

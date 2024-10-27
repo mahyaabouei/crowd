@@ -47,8 +47,6 @@ class CrowdfundingAPI:
 
     BASE_URL = os.getenv('BASE_URL')
     API_KEY = os.getenv('API_KEY')
-    print('s',BASE_URL)
-    print('ss',API_KEY)
 
     def __init__(self):
         """

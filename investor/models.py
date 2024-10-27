@@ -3,6 +3,22 @@ from authentication.models import User
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+def validate_file_type(file):
+    valid_mime_types = [
+        'image/jpeg', 'image/png', 'application/pdf',
+        'application/zip', 'application/x-rar-compressed', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', # docx
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',       # xlsx
+        'text/csv', 'application/vnd.ms-excel'                                     # csv, xls
+    ]
+    
+    valid_extensions = ['jpg', 'jpeg', 'png', 'pdf', 'zip', 'rar', 'docx', 'xlsx', 'csv', 'xls']
+    
+    file_mime_type = file.content_type
+    file_extension = file.name.split('.')[-1].lower()
+
+    if file_mime_type not in valid_mime_types or file_extension not in valid_extensions:
+        raise ValidationError("Unsupported file type.")
 
 
 
@@ -56,43 +72,43 @@ class Cart (models.Model) :
     address = models.CharField (max_length=500 , blank = True, null = True)
     Lock_address = models.BooleanField(default=False)
 
-    financial_report_thisyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    financial_report_thisyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_financial_report_thisyear = models.BooleanField(default=False)
 
-    financial_report_lastyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    financial_report_lastyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_financial_report_lastyear = models.BooleanField(default=False)
-    financial_report_yearold = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    financial_report_yearold = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_financial_report_yearold = models.BooleanField(default=False)
 
-    audit_report_thisyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    audit_report_thisyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_audit_report_thisyear = models.BooleanField(default=False)
 
-    audit_report_lastyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    audit_report_lastyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_audit_report_lastyear = models.BooleanField(default=False)
 
-    audit_report_yearold = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    audit_report_yearold = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_audit_report_yearold= models.BooleanField(default=False)
 
-    statement_thisyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    statement_thisyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_statement_thisyear = models.BooleanField(default=False)
 
-    statement_lastyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    statement_lastyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_statement_lastyear = models.BooleanField(default=False)
 
-    statement_yearold = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    statement_yearold = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_statement_yearold = models.BooleanField(default=False)
 
-    alignment_6columns_thisyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    alignment_6columns_thisyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_alignment_6columns_thisyear = models.BooleanField(default=False)
 
-    alignment_6columns_lastyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    alignment_6columns_lastyear = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_alignment_6columns_lastyear = models.BooleanField(default=False)
 
-    alignment_6columns_yearold = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    alignment_6columns_yearold = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_alignment_6columns_yearold = models.BooleanField(default=False)
 
     creat = models.DateTimeField(default=timezone.now)
-    logo = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_size])
+    logo = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type])
     Lock_logo =  models.BooleanField(default=False)
 
     city = models.CharField(max_length=100 , null=True , blank=True)
@@ -163,43 +179,44 @@ class Cart (models.Model) :
 class Message(models.Model):
     cart  = models.ForeignKey(Cart , on_delete=models.CASCADE)
     message = models.CharField(max_length=512 )
+    send_sms = models.BooleanField(default=False)
     def __str__(self):
         return self.cart.__str__() + self.message
     
 
 class AddInformation (models.Model):
-    announcement_of_changes_managers = models.FileField(upload_to='static/' ,  blank = True, null = True) # اگهی اخرین تغیرات مدیران 
+    announcement_of_changes_managers = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) # اگهی اخرین تغیرات مدیران 
     lock_announcement_of_changes_managers = models.BooleanField(default=False)
     
-    announcement_of_changes_capital  = models.FileField(upload_to='static/' ,  blank = True, null = True) # اگهی اخرین تغیرات سرمایه ای 
+    announcement_of_changes_capital  = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) # اگهی اخرین تغیرات سرمایه ای 
     lock_announcement_of_changes_capital = models.BooleanField(default=False)
     
-    bank_account_turnover = models.FileField(upload_to='static/' ,  blank = True, null = True) # گردش حساب بانکی
+    bank_account_turnover = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) # گردش حساب بانکی
     lock_bank_account_turnover = models.BooleanField(default=False)
     
-    statutes = models.FileField(upload_to='static/' ,  blank = True, null = True) #اساسنامه
+    statutes = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) #اساسنامه
     lock_statutes = models.BooleanField(default=False)
     
-    assets_and_liabilities = models.FileField(upload_to='static/' ,  blank = True, null = True) #لیست دارایی ها و بدهی ها 
+    assets_and_liabilities = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) #لیست دارایی ها و بدهی ها 
     lock_assets_and_liabilities = models.BooleanField(default=False)
     
-    latest_insurance_staf  =models.FileField(upload_to='static/' ,  blank = True, null = True) #اخرین لیست بیمه کارکنان 
+    latest_insurance_staf  =models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) #اخرین لیست بیمه کارکنان 
     lock_latest_insurance_staf = models.BooleanField(default=False)
     
-    claims_status = models.FileField(upload_to='static/' ,  blank = True, null = True) # وضعیت دعاوی
+    claims_status = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) # وضعیت دعاوی
     lock_claims_status = models.BooleanField(default=False)
     
     
-    product_catalog = models.FileField(upload_to='static/' ,  blank = True, null = True) # کاتالوگ محصولات
+    product_catalog = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) # کاتالوگ محصولات
     lock_product_catalog = models.BooleanField(default=False)
     
-    licenses = models.FileField(upload_to='static/' ,  blank = True, null = True) # مجوز ها
+    licenses = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) # مجوز ها
     lock_licenses = models.BooleanField(default=False)
     
-    auditor_representative = models.FileField(upload_to='static/' ,  blank = True, null = True) # معرف حسابرس
+    auditor_representative = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) # معرف حسابرس
     lock_auditor_representative = models.BooleanField(default=False)
     
-    announcing_account_number = models.FileField(upload_to='static/' ,  blank = True, null = True) # اعلام شماره حساب
+    announcing_account_number = models.FileField(upload_to='static/' ,  blank = True, null = True,validators=[validate_file_type]) # اعلام شماره حساب
     lock_announcing_account_number = models.BooleanField(default=False)
 
     cart = models.ForeignKey(Cart, on_delete= models.CASCADE)

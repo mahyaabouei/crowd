@@ -1,4 +1,33 @@
 from django.db import models
+from django.utils import timezone
+from datetime import timedelta
+from django.core.exceptions import ValidationError
+
+def validate_file_type(file):
+    valid_mime_types = [
+        'image/jpeg', 'image/png', 'application/pdf',
+        'application/zip', 'application/x-rar-compressed', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', # docx
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',       # xlsx
+        'text/csv', 'application/vnd.ms-excel'                                     # csv, xls
+    ]
+    
+    valid_extensions = ['jpg', 'jpeg', 'png', 'pdf', 'zip', 'rar', 'docx', 'xlsx', 'csv', 'xls']
+    
+    file_mime_type = file.content_type
+    file_extension = file.name.split('.')[-1].lower()
+
+    if file_mime_type not in valid_mime_types or file_extension not in valid_extensions:
+        raise ValidationError("Unsupported file type.")
+
+
+class BlacklistedToken(models.Model):
+    token = models.CharField(max_length=500)
+    blacklisted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.token
+
 
 class User(models.Model):
     agent = models.CharField(max_length= 200 , null=True, blank=True )
@@ -8,10 +37,20 @@ class User(models.Model):
     type = models.CharField(max_length=200)
     uniqueIdentifier = models.CharField(max_length=150 , unique=True)
     referal = models.CharField(max_length=14,  null=True, blank=True , unique=True) # معرف : کدملی معرف 
+    attempts = models.IntegerField(default=0)
+    lock_until = models.DateTimeField(null=True, blank=True)
+    def lock(self):
+        self.lock_until = timezone.now() + timedelta(minutes=5)     
+        self.save()
+    def is_locked(self):
+        if self.lock_until and timezone.now() < self.lock_until:
+            return True
+        return False
 
     def __str__(self):
         uniqueIdentifier = self.uniqueIdentifier if self.uniqueIdentifier else "uniqueIdentifier"
         return f'{uniqueIdentifier}'
+    
 
 class accounts (models.Model) :
     user = models.ForeignKey(User,on_delete=models.CASCADE)
@@ -43,13 +82,13 @@ class LegalPerson (models.Model):
 
 class legalPersonShareholders (models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    uniqueIdentifier = models.CharField( max_length=150 , null=True , blank= True)
-    postalCode = models.CharField( max_length=150 , null=True , blank= True)
-    positionType = models.CharField( max_length=150 , null=True , blank= True)
-    percentageVotingRight = models.CharField( max_length=150 , null=True , blank= True)
-    lastName = models.CharField( max_length=150 , null=True , blank= True)
-    firstName = models.CharField( max_length=150 , null=True , blank= True)
-    address = models.CharField( max_length=150 , null=True , blank= True)
+    uniqueIdentifier = models.CharField( max_length=20 , null=True , blank= True)
+    postalCode = models.CharField( max_length=20 , null=True , blank= True)
+    positionType = models.CharField( max_length=50 , null=True , blank= True)
+    percentageVotingRight = models.CharField( max_length=50 , null=True , blank= True)
+    lastName = models.CharField( max_length=50 , null=True , blank= True)
+    firstName = models.CharField( max_length=50 , null=True , blank= True)
+    address = models.TextField( max_length=150 , null=True , blank= True)
     
 
 
@@ -134,7 +173,7 @@ class privatePerson (models.Model) :
     seriShChar = models.CharField(max_length=200, null=True, blank=True)
     serial = models.CharField(max_length=200)
     shNumber = models.CharField(max_length=200)
-    signatureFile = models.FileField(upload_to='signatures/', null=True, blank=True) 
+    signatureFile = models.FileField(upload_to='signatures/', null=True, blank=True,validators=[validate_file_type]) 
 
 
 class tradingCodes (models.Model) :
@@ -147,9 +186,12 @@ class tradingCodes (models.Model) :
 
 
 class Otp(models.Model):
-    code = models.CharField(max_length=4)
+    code = models.CharField(max_length=6)
     mobile = models.CharField(max_length=14)
     date = models.DateTimeField(auto_now_add=True)
+    attempts  = models.IntegerField(default=0)
+    locking = models.DateTimeField(blank= True , null= True) 
+    expire = models.DateTimeField(blank=True, null=True)
 
 
 class Admin(models.Model):
@@ -158,6 +200,15 @@ class Admin(models.Model):
     mobile = models.CharField(max_length=11)
     uniqueIdentifier = models.CharField(max_length=10)
     email = models.EmailField()
+    attempts = models.IntegerField(default=0)
+    lock_until = models.DateTimeField(null=True, blank=True)
+    def lock(self):
+        self.lock_until = timezone.now() + timedelta(minutes=5)     
+        self.save()
+    def is_locked(self):
+        if self.lock_until and timezone.now() < self.lock_until:
+            return True
+        return False
     def __str__(self):
         uniqueIdentifier = self.uniqueIdentifier if self.uniqueIdentifier else "uniqueIdentifier"
         return f'{uniqueIdentifier}'

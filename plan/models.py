@@ -1,6 +1,24 @@
 from django.db import models
 from authentication.models import User
 from django.utils import timezone
+from django.core.exceptions import ValidationError
+
+def validate_file_type(file):
+    valid_mime_types = [
+        'image/jpeg', 'image/png', 'application/pdf',
+        'application/zip', 'application/x-rar-compressed', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', # docx
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',       # xlsx
+        'text/csv', 'application/vnd.ms-excel'                                     # csv, xls
+    ]
+    
+    valid_extensions = ['jpg', 'jpeg', 'png', 'pdf', 'zip', 'rar', 'docx', 'xlsx', 'csv', 'xls']
+    
+    file_mime_type = file.content_type
+    file_extension = file.name.split('.')[-1].lower()
+
+    if file_mime_type not in valid_mime_types or file_extension not in valid_extensions:
+        raise ValidationError("Unsupported file type.")
 
 
 
@@ -93,7 +111,7 @@ class ListOfProjectBoardMembers(models.Model):
 
 class PicturePlan(models.Model):
     plan = models.ForeignKey(Plan , on_delete=models.CASCADE)
-    picture = models.FileField(upload_to='static/' , null=True ,  blank= True)
+    picture = models.FileField(upload_to='static/' , null=True ,  blank= True ,validators=[validate_file_type])
     def __str__(self) :
         return str(self.plan.persian_name)
 
@@ -103,7 +121,7 @@ class PicturePlan(models.Model):
 class DocumentationFiles(models.Model): #فایل های مستندات
     plan = models.ForeignKey(Plan , on_delete=models.CASCADE)
     title = models.CharField(max_length=150 , blank=True , null=True) 
-    file = models.FileField(upload_to = 'static/', null=True , blank=True)
+    file = models.FileField(upload_to = 'static/', null=True , blank=True,validators=[validate_file_type])
     def __str__(self) :
         return str (self.title)
     
@@ -112,7 +130,7 @@ class DocumentationFiles(models.Model): #فایل های مستندات
 class Appendices(models.Model): #تضامین 
     plan = models.ForeignKey(Plan , on_delete=models.CASCADE)
     title = models.CharField(max_length=150 , blank=True , null=True) 
-    file = models.FileField(upload_to = 'static/', null=True , blank=True)
+    file = models.FileField(upload_to = 'static/', null=True , blank=True,validators=[validate_file_type])
     def __str__(self) :
         return str (self.title)
     
@@ -139,7 +157,7 @@ class PaymentGateway(models.Model) :
     payment_id = models.CharField(max_length=256) #شناسه پرداخت
     description = models.CharField(max_length=2500 , null=True, blank=True)
     code = models.CharField(max_length=2500 , null=True, blank=True) #کد 
-    create_date =  models.DateTimeField(null=True, blank=True, default=timezone.now) # تاریخ ایجاد مشارکت 
+    create_date =  models.DateTimeField(default=timezone.now) # تاریخ ایجاد مشارکت 
     risk_statement = models.BooleanField(default=True) # بیانیه ریسک
     name_status = models.BooleanField (default=False)
     status_option = [
@@ -150,7 +168,7 @@ class PaymentGateway(models.Model) :
     ]
     status =  models.CharField (max_length=10 , choices= status_option , default='1' )
     document =  models.BooleanField (default=True)
-    picture = models.FileField(null=True, blank = True  , upload_to='static/')
+    picture = models.FileField(null=True, blank = True  , upload_to='static/',validators=[validate_file_type])
     send_farabours = models.BooleanField (default=False)
     url_id = models.CharField(max_length=10000 , null= True , blank=True)
     mobile = models.CharField(max_length=13 , null= True , blank=True)

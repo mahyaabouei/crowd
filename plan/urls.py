@@ -1,5 +1,5 @@
 from django.urls import path
-from.views import PlansViewset, PlanViewset,PaymentUser,Certificate,TransmissionViewset ,  DocumentationViewset,WarrantyAdminViewset,AppendicesViewset,PaymentDocument,EndOfFundraisingViewset,ShareholdersListExelViewset, SendParticipationCertificateToFaraboursViewset,CommentAdminViewset , CommentViewset ,InformationPlanViewset   ,SendpicturePlanViewset , ParticipantViewset , SendPaymentToFarabours
+from.views import PlansViewset, BankReceiptViewset ,PlanViewset,PaymentUser,Certificate,TransmissionViewset ,ParticipantMenuViewset,  DocumentationViewset,WarrantyAdminViewset,AppendicesViewset,PaymentDocument,EndOfFundraisingViewset,ShareholdersListExelViewset, SendParticipationCertificateToFaraboursViewset,CommentAdminViewset , CommentViewset ,InformationPlanViewset   ,SendpicturePlanViewset , ParticipantViewset , SendPaymentToFarabours
 
 
 urlpatterns = [
@@ -14,7 +14,7 @@ urlpatterns = [
     path('payment/document/<str:trace_code>/', PaymentDocument.as_view(), name='payment-admin'), # مشخصات سرمایه گذران 
     path('payment/user/<str:trace_code>/', PaymentUser.as_view(), name='payment-user'),
     path('certificate/user/<str:trace_code>/', Certificate.as_view(), name='participant-user'),
-    path('participant/user/<str:trace_code>/', ParticipantViewset.as_view(), name='participant-user'),
+    path('participant/user/<str:trace_code>/', ParticipantViewset.as_view(), name='participant-user'),   # ???
     path('information/plan/admin/<str:trace_code>/', InformationPlanViewset.as_view(), name='add-information-plan-admin'),
     path('end/fundraising/admin/<str:trace_code>/', EndOfFundraisingViewset.as_view(), name='end-fundraising-plan-admin'),
     path('send/payment/farabours/admin/<str:trace_code>/', SendPaymentToFarabours.as_view(), name='send-payment-farabours-admin'),
@@ -22,5 +22,9 @@ urlpatterns = [
     path('read/exel/shareholder/admin/<str:key>/', ShareholdersListExelViewset.as_view(), name='exel-shareholders-admin'),
     path('warranty/admin/<str:key>/', WarrantyAdminViewset.as_view(), name='warranty-admin'), #  ضمانت نامه
     path('transmission/user/<str:key>/', TransmissionViewset.as_view(), name='transmission-user'), # درگاه پرداخت
+    path('bank/reciept/payment/admin/<int:id>/', BankReceiptViewset.as_view(), name='bank-reciept-payment-admin'), # فیش بانکی های ادمین
+    path('participant/menu/user/', ParticipantMenuViewset.as_view(), name='participant-menu-user'), # درگاه بانکی کاربر
+
 
 ]
+

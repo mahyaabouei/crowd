@@ -20,9 +20,15 @@ from plan.views import get_name , get_account_number
 import os
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.http import JsonResponse
+from django_ratelimit.decorators import ratelimit   
+from django.utils.decorators import method_decorator
+
+
 # گزارش پیشرفت پروژه
 # done
 class ProgressReportViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -45,7 +51,7 @@ class ProgressReportViewset(APIView) :
     
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
@@ -57,7 +63,7 @@ class ProgressReportViewset(APIView) :
         return Response(serializer.data , status=status.HTTP_200_OK)
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='DELETE', block=True))
     def delete (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -76,6 +82,7 @@ class ProgressReportViewset(APIView) :
 # گزارش حسابررسی
 # done
 class AuditReportViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -98,7 +105,7 @@ class AuditReportViewset(APIView) :
     
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
@@ -110,7 +117,7 @@ class AuditReportViewset(APIView) :
         return Response(serializer.data , status=status.HTTP_200_OK)
 
 
-
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='DELETE', block=True))
     def delete (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -129,6 +136,7 @@ class AuditReportViewset(APIView) :
 # گزارش مشارکت کننده ها
 # done
 class ParticipationReportViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self , request, trace_code) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -156,6 +164,7 @@ class ParticipationReportViewset(APIView) :
 # داشبورد ادمین 
 # done
 class DashBoardAdminViewset (APIView) : 
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self , request) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -193,6 +202,7 @@ class DashBoardAdminViewset (APIView) :
 # داشبورد مشتری 
 # done
 class DashBoardUserViewset(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request) : 
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -232,6 +242,7 @@ class DashBoardUserViewset(APIView) :
     
 # گزارش سود دهی ادمین
 class ProfitabilityReportViewSet(APIView) :
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self,request,trace_code):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -246,14 +257,16 @@ class ProfitabilityReportViewSet(APIView) :
         if not plan.exists():
             return Response({'error': 'plan not found'}, status=status.HTTP_404_NOT_FOUND)
         plan =plan.first()
-        end_plan = EndOfFundraising.objects.filter(plan=plan)
+        end_plan = EndOfFundraising.objects.filter(plan=plan,type=2)
         if not end_plan.exists():
             return Response({'error': 'plan not end'}, status=status.HTTP_406_NOT_ACCEPTABLE)
         end_plan = serializers.EndOfFundraisingSerializer(end_plan,many=True)
         user_peyment = PaymentGateway.objects.filter(plan=plan,status='3')
-        if user_peyment is None:
+
+        if not user_peyment :
             return Response({'error': 'payment not fund'}, status=status.HTTP_406_NOT_ACCEPTABLE)
         user_peyment = serializers.PaymentGatewaySerializer(user_peyment,many=True)
+
         information = InformationPlan.objects.filter(plan=plan)
         if not information.exists():
             return Response({'error': 'information not fund'}, status=status.HTTP_406_NOT_ACCEPTABLE)
@@ -278,22 +291,22 @@ class ProfitabilityReportViewSet(APIView) :
         df ['account_number'] = account_numbers
         df ['user_name'] = user_names
 
-        pey_df = pd.DataFrame(end_plan.data).sort_values('date_operator')
-        start_project = plan.project_start_date
-        pey_df['date_operator'] = pd.to_datetime(pey_df['date_operator'])
-        pey_df['date_diff'] = (pey_df['date_operator'] - pd.to_datetime(start_project))
-        pey_df['date_diff'] = [x.days for x in  pey_df['date_diff']]
+        pey_df = pd.DataFrame(end_plan.data).sort_values('date_operator')[['type','date_operator']]
+        start_project = datetime.datetime.fromisoformat(information_serializer.data['payment_date']).replace(tzinfo=None)
+        pey_df['date_operator'] = pd.to_datetime(pey_df['date_operator']).dt.tz_localize(None)
+        pey_df['start_project'] = start_project
+        pey_df['date_diff'] = (pey_df['date_operator'] - pey_df['start_project']).dt.days
+        pey_df['date_diff'] = pey_df['date_diff'] - pey_df['date_diff'].shift(1).fillna(0)
+
         pey_df['profit'] = pey_df['date_diff'] * rate_of_return 
         pey_df = pey_df.sort_values('date_diff')
         qest = 1
         for i in pey_df.index : 
-            if pey_df['type'][i] == '2' :
-                df[f'profit{qest}'] = pey_df['profit'][i]
-                df[f'value{qest}'] = pey_df['profit'][i] * df['value']
-                df[f'date_operator{qest}'] = pey_df['date_operator'][i]
-                qest += 1
-            else :
-                df['date_base'] = pey_df['date_operator']
-        print(df)
+            df[f'profit{qest}'] = pey_df['profit'][i]
+            df[f'value{qest}'] = pey_df['profit'][i] * df['value']
+            df[f'date_operator{qest}'] = pey_df['date_operator'][i]
+            qest += 1
+
         df = df.to_dict('records')
         return Response(df, status=status.HTTP_200_OK)
+    

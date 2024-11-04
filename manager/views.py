@@ -17,7 +17,7 @@ from django.utils.decorators import method_decorator
 # done
 class ManagerViewset(APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self , request , id ):
+    def post (self , request , unique_id ):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -25,7 +25,7 @@ class ManagerViewset(APIView) :
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         manager = Manager.objects.filter(cart=cart)
@@ -41,7 +41,7 @@ class ManagerViewset(APIView) :
         return Response({'message': True, 'data': serializer.data}, status=status.HTTP_200_OK)
     
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self,request , id):
+    def get (self,request , unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -49,7 +49,7 @@ class ManagerViewset(APIView) :
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         
@@ -61,7 +61,7 @@ class ManagerViewset(APIView) :
 # done
 class ManagerAdminViewset(APIView):
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self,request,id):
+    def get (self,request,unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -69,7 +69,7 @@ class ManagerAdminViewset(APIView):
         if not admin:
             return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
         admin = admin.first()
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         
@@ -77,7 +77,7 @@ class ManagerAdminViewset(APIView):
         serializer = serializers.ManagerSerializer(managers, many=True)
         return Response({'message': True ,  'data': serializer.data }, status=status.HTTP_200_OK)
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request, id):
+    def post(self, request, unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -87,10 +87,10 @@ class ManagerAdminViewset(APIView):
             return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
         admin = admin.first()
 
-        if id is None:
-            return Response({'error': 'Cart ID is missing'}, status=status.HTTP_400_BAD_REQUEST)
+        if unique_id is None:
+            return Response({'error': 'Cart unique_id is missing'}, status=status.HTTP_400_BAD_REQUEST)
 
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         managers_data = request.data.get('managers', [])
@@ -124,7 +124,7 @@ class ManagerAdminViewset(APIView):
 # done
 class ResumeViewset(APIView):
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self,request,id) :
+    def post (self,request,unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -133,7 +133,7 @@ class ResumeViewset(APIView):
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
         
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         
@@ -159,7 +159,7 @@ class ResumeViewset(APIView):
         return Response({'success' : True}, status=status.HTTP_200_OK)
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self,request,id) :
+    def get (self,request,unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -167,7 +167,7 @@ class ResumeViewset(APIView):
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
-        cart = models.Cart.objects.filter(user=user,id=id)
+        cart = models.Cart.objects.filter(user=user,unique_id=unique_id)
         if not cart.exists():
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         cart = cart.first()
@@ -196,7 +196,7 @@ class ResumeViewset(APIView):
 # done
 class ResumeAdminViewset(APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get(self, request,id) :
+    def get(self, request,unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -204,7 +204,7 @@ class ResumeAdminViewset(APIView) :
         if not admin:
             return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
         admin = admin.first()
-        cart = models.Cart.objects.filter(id=id)
+        cart = models.Cart.objects.filter(unique_id=unique_id)
         if not cart.exists():
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         cart = cart.first()
@@ -229,7 +229,7 @@ class ResumeAdminViewset(APIView) :
 
         return Response({'manager': resume_list}, status=status.HTTP_200_OK)
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request, id):
+    def post(self, request, unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -241,7 +241,7 @@ class ResumeAdminViewset(APIView) :
         managers_data = []
 
         data = request.data.copy()
-        cart = models.Cart.objects.filter(id=id)
+        cart = models.Cart.objects.filter(unique_id=unique_id)
         if len(cart) == 0:
             return Response({'error': 'Not found cart'}, status=status.HTTP_400_BAD_REQUEST)
         cart = cart.first()
@@ -293,7 +293,7 @@ class ResumeAdminViewset(APIView) :
 # done
 class ShareholderViewset(APIView):
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request,id):
+    def post(self, request,unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -301,7 +301,7 @@ class ShareholderViewset(APIView):
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         shareholder = Shareholder.objects.filter(cart=cart)
@@ -323,7 +323,7 @@ class ShareholderViewset(APIView):
 
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self, request , id) :
+    def get (self, request , unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -331,7 +331,7 @@ class ShareholderViewset(APIView):
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         
@@ -343,7 +343,7 @@ class ShareholderViewset(APIView):
 # done
 class ShareholderAdminViewset(APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self, request, id) :
+    def get (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -351,7 +351,7 @@ class ShareholderAdminViewset(APIView) :
         if not admin:
             return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
         admin = admin.first()
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         
@@ -360,7 +360,7 @@ class ShareholderAdminViewset(APIView) :
         return Response({'message': True ,  'data': serializer.data }, status=status.HTTP_200_OK)
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self,request,id) :
+    def post(self,request,unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -368,9 +368,9 @@ class ShareholderAdminViewset(APIView) :
         if not admin:
             return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
         admin = admin.first()
-        if id is None:
+        if unique_id is None:
             return Response({'error': 'Manager ID is missing'}, status=status.HTTP_400_BAD_REQUEST)
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         shareholder = Shareholder.objects.filter(cart=cart)
@@ -393,7 +393,7 @@ class ShareholderAdminViewset(APIView) :
 # done
 class ValidationViewset (APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request, id):
+    def post(self, request, unique_id):
         try:
             Authorization = request.headers.get('Authorization')
             if not Authorization:
@@ -404,7 +404,7 @@ class ValidationViewset (APIView) :
                 return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
             
             user = user.first()
-            cart = models.Cart.objects.filter(id=id).first()
+            cart = models.Cart.objects.filter(unique_id=unique_id).first()
             if not cart:
                 return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -477,7 +477,7 @@ class ValidationViewset (APIView) :
 
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get(self, request, id):
+    def get(self, request, unique_id):
         try:
             Authorization = request.headers.get('Authorization')
             if not Authorization:
@@ -488,7 +488,7 @@ class ValidationViewset (APIView) :
                 return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
             
             user = user.first()
-            cart = models.Cart.objects.filter(id=id).first()
+            cart = models.Cart.objects.filter(unique_id=unique_id).first()
             if not cart:
                 return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -548,7 +548,7 @@ class ValidationViewset (APIView) :
 # done
 class ValidationAdminViewset (APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self, request, id) :
+    def post (self, request, unique_id) :
         try :
             Authorization = request.headers.get('Authorization')
             if not Authorization:
@@ -557,7 +557,7 @@ class ValidationAdminViewset (APIView) :
             if not admin:
                 return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
             admin = admin.first()
-            cart = models.Cart.objects.filter(id=id).first()
+            cart = models.Cart.objects.filter(unique_id=unique_id).first()
             if not cart:
                 return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -661,7 +661,7 @@ class ValidationAdminViewset (APIView) :
 
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self, request, id) :
+    def get (self, request, unique_id) :
         try :
             Authorization = request.headers.get('Authorization')
             if not Authorization:
@@ -670,7 +670,7 @@ class ValidationAdminViewset (APIView) :
             if not admin:
                 return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
             admin = admin.first()
-            cart = models.Cart.objects.filter(id=id).first()
+            cart = models.Cart.objects.filter(unique_id=unique_id).first()
             if not cart:
                 return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -723,7 +723,7 @@ class ValidationAdminViewset (APIView) :
 # done
 class HistoryViewset (APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self, request, id) :
+    def post (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -731,7 +731,7 @@ class HistoryViewset (APIView) :
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         if not request.FILES:
@@ -772,7 +772,7 @@ class HistoryViewset (APIView) :
 
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self, request, id) :
+    def get (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response ({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -780,7 +780,7 @@ class HistoryViewset (APIView) :
         if not user:
             return Response ({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response ({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         manager = Manager.objects.filter(cart=cart)
@@ -822,7 +822,7 @@ class HistoryViewset (APIView) :
 # done
 class HistoryAdminViewset (APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request, id):
+    def post(self, request, unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -832,7 +832,7 @@ class HistoryAdminViewset (APIView) :
             return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
         admin = admin.first()
         
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         
@@ -892,7 +892,7 @@ class HistoryAdminViewset (APIView) :
 
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self, request, id) :
+    def get (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -900,7 +900,7 @@ class HistoryAdminViewset (APIView) :
         if not admin:
             return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
         admin = admin.first()
-        cart = models.Cart.objects.filter(id=id).first()
+        cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
             return Response ({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
         manager = Manager.objects.filter(cart=cart)

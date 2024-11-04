@@ -18,8 +18,5 @@ opencv-python
 dj-database-url
 python-dotenv
 transaction
-<<<<<<< HEAD
 bleach
-=======
 django-csp
->>>>>>> 5677760c402b09d623a749079ca0194cbe11223b

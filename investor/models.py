@@ -30,6 +30,7 @@ def validate_file_size(file):
 #  کارت درخواست سرمایه پذیر
 class Cart (models.Model) :
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    unique_id = models.CharField(max_length=150 , unique=True)
     company_name = models.CharField(max_length =200)
     Lock_company_name = models.BooleanField(default=False)
     

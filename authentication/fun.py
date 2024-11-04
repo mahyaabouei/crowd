@@ -39,7 +39,7 @@ def decryptionUser(Bearer):
         user_data = json.loads(user_data)  
 
         created_at = datetime.fromisoformat(user_data['created_at'])
-        if datetime.utcnow() - created_at > timedelta(hours=24): 
+        if datetime.utcnow() - created_at > timedelta(minutes=15): 
             print("Token has expired.")
             return None
         
@@ -78,7 +78,7 @@ def decryptionadmin(Bearer):
         admin_data = json.loads(admin_data)  
 
         created_at = datetime.fromisoformat(admin_data['created_at'])
-        if datetime.utcnow() - created_at > timedelta(hours=24):  
+        if datetime.utcnow() - created_at > timedelta(minutes=15):  
             print("Token has expired.")
             return None
         

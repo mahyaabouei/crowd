@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from GuardPyCaptcha.Captch import GuardPyCaptcha
 from rest_framework import status 
 import requests
-from .models import User , Otp , Admin , accounts ,addresses ,BlacklistedToken, financialInfo , jobInfo , privatePerson ,tradingCodes , Reagent , legalPersonShareholders , legalPersonStakeholders , LegalPerson
+from .models import User , Otp , Captcha , Admin , accounts ,addresses ,BlacklistedToken, financialInfo , jobInfo , privatePerson ,tradingCodes , Reagent , legalPersonShareholders , legalPersonStakeholders , LegalPerson
 from . import serializers
 import datetime
 from . import fun
@@ -25,6 +25,10 @@ class CaptchaViewset(APIView) :
     def get (self,request):
         captcha = GuardPyCaptcha ()
         captcha = captcha.Captcha_generation(num_char=4 , only_num= True)
+        Captcha.objects.create(encrypted_response=captcha['encrypted_response'])
+        captcha_obj = Captcha.objects.filter(encrypted_response=captcha['encrypted_response'],enabled=True).first()
+
+
         return Response ({'captcha' : captcha} , status = status.HTTP_200_OK)
 
 # otp for user
@@ -32,6 +36,10 @@ class OtpViewset(APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request) :
         encrypted_response = request.data['encrypted_response'].encode()
+        captcha_obj = Captcha.objects.filter(encrypted_response=request.data['encrypted_response'],enabled=True).first()
+        if not captcha_obj :
+            return Response ({'message' : 'کپچا صحیح نیست'} , status=status.HTTP_400_BAD_REQUEST)
+        captcha_obj.delete()
         if isinstance(encrypted_response, str):
             encrypted_response = encrypted_response.encode('utf-8')
         captcha = GuardPyCaptcha()
@@ -76,10 +84,10 @@ class OtpViewset(APIView) :
             }
             response = requests.request("POST", url, headers=headers, data=payload)
             if response.status_code >=300 :
-                return Response ({'message' :'شما سجامی نیستید'} , status=status.HTTP_400_BAD_REQUEST)
-            return Response ({'registered' :False , 'message' : 'کد تایید ارسال شد'},status=status.HTTP_200_OK)
+                return Response ({ 'message' : 'کد تایید ارسال شد'},status=status.HTTP_200_OK)
+            return Response ({ 'message' : 'کد تایید ارسال شد'},status=status.HTTP_200_OK)
 
-        return Response({'message' : 'اطلاعات شما یافت نشد'},status=status.HTTP_400_BAD_REQUEST)   
+        return Response ({ 'message' : 'کد تایید ارسال شد'},status=status.HTTP_200_OK)
                 
 
         
@@ -400,6 +408,10 @@ class OtpAdminViewset(APIView) :
     def post (self,request) :
         captcha = GuardPyCaptcha()
         encrypted_response = request.data['encrypted_response']
+        captcha_obj = Captcha.objects.filter(encrypted_response=encrypted_response,enabled=True).first()
+        if not captcha_obj :
+            return Response ({'message' : 'کپچا صحیح نیست'} , status=status.HTTP_400_BAD_REQUEST)
+        captcha_obj.delete()
         if isinstance(encrypted_response, str):
             encrypted_response = encrypted_response.encode('utf-8')
         captcha = captcha.check_response(encrypted_response , request.data['captcha'])
@@ -429,9 +441,9 @@ class OtpAdminViewset(APIView) :
             message = Message(code,admin.mobile,admin.email)
             message.otpSMS()
         # message.otpEmail(code, admin.email)
-            return Response({'registered' : True  ,'message' : 'کد تایید ارسال شد' },status=status.HTTP_200_OK)
+            return Response({'message' : 'کد تایید ارسال شد' },status=status.HTTP_200_OK)
     
-        return Response({'registered' : False , 'message' : 'اطلاعات شما یافت نشد'},status=status.HTTP_400_BAD_REQUEST)   
+        return Response({'message' : 'کد تایید ارسال شد' },status=status.HTTP_200_OK)
 
 
 

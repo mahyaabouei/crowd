@@ -220,3 +220,9 @@ class Reagent(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
     def __str__(self):
         return f'Reagent between {self.referrer} and {self.reference}'
+    
+
+class Captcha(models.Model):
+    encrypted_response = models.TextField(max_length=6)
+    enabled = models.BooleanField(default=True)
+

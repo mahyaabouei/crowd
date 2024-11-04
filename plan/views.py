@@ -520,12 +520,14 @@ class CommentViewset (APIView):
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
             return Response({'error': 'plan not found'}, status=status.HTTP_404_NOT_FOUND)
-        data = request.data
-        if not data.get('comment') or data.get('known'):
-            return Response({'error': 'Comment or known not found'}, status=status.HTTP_404_NOT_FOUND)
-        comment = Comment(plan=plan , user=user, known=data.get('known'),comment= data.get('comment'),answer='منتظر پاسخ')
+        data = request.data.copy()
+        if not data['known']:
+            data['known'] = False
+        if not data['comment']:
+            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+        comment = Comment(plan=plan , user=user, known=data['known'] ,comment= data['comment'] ,answer='منتظر پاسخ')
         comment.save()
-        return Response(status=status.HTTP_200_OK)
+        return Response(True,status=status.HTTP_200_OK)
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
         Authorization = request.headers.get('Authorization')
@@ -545,7 +547,7 @@ class CommentViewset (APIView):
 
         comments = Comment.objects.filter(plan=plan, status=True)
         if not comments.exists():
-            return Response({'error': 'Comments not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'comments not found or no status true'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = serializers.CommenttSerializer(comments, many=True)
 
@@ -1341,7 +1343,7 @@ class TransmissionViewset(APIView) :
             description = invoice_data['description'],
             code = None,
             risk_statement = True,
-            status = '1',
+            status = '2',
             document = False,
             picture = None , 
             send_farabours = True,

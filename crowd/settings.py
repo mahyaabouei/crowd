@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'plan', 
     'accounting', 
     'reports',
+    'drf_yasg',
 
 
 ]

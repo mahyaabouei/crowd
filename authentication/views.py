@@ -21,8 +21,22 @@ from django.conf import settings
 
 
 class CaptchaViewset(APIView) :
+    """
+    This view is used to generate a CAPTCHA code and send it to the user.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request):
+        """
+        Generate and send CAPTCHA code.
+
+        This method generates a 4-character numeric CAPTCHA code, stores it in the database, 
+        and returns the generated code and CAPTCHA image URL to the user as a response.
+
+        Response:
+            captcha: Information about the CAPTCHA, including the encrypted code and image URL.
+        
+        """
         captcha = GuardPyCaptcha ()
         captcha = captcha.Captcha_generation(num_char=4 , only_num= True)
         Captcha.objects.create(encrypted_response=captcha['encrypted_response'])
@@ -31,10 +45,34 @@ class CaptchaViewset(APIView) :
 
         return Response ({'captcha' : captcha} , status = status.HTTP_200_OK)
 
+
 # otp for user
 class OtpViewset(APIView) :
+    """
+    This view is used to verify CAPTCHA and send an OTP code to the user.
+    """
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request) :
+        """
+        Verify CAPTCHA and send OTP code.
+
+        This method verifies the CAPTCHA, checks if the national code exists in the system, and sends an OTP to the user's mobile.
+        
+        - If the CAPTCHA is incorrect, an error message is returned.
+        - If the CAPTCHA is correct, an OTP code is generated and sent to the user's mobile.
+        - If the national code does not exist in the system, an OTP request is sent to an external service.
+
+        Parameters:
+            encrypted_response (str): Encrypted CAPTCHA response.
+            captcha (str): User-entered CAPTCHA code.
+            uniqueIdentifier (str): National ID or unique identifier of the user.
+
+        Responses:
+            200: {"message": "OTP has been sent"}
+            400: {"message": "Invalid CAPTCHA" / "National ID required" / "Wait 2 minutes to resend OTP"}
+        
+        """
         encrypted_response = request.data['encrypted_response'].encode()
         captcha_obj = Captcha.objects.filter(encrypted_response=request.data['encrypted_response'],enabled=True).first()
         if not captcha_obj :
@@ -90,12 +128,30 @@ class OtpViewset(APIView) :
         return Response ({ 'message' : 'کد تایید ارسال شد'},status=status.HTTP_200_OK)
                 
 
-        
 # login or sign up user
-# done
 class LoginViewset(APIView):
+    """
+    This view handles the login process, which includes OTP verification and user creation if necessary.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self, request) :
+        """
+        User login process.
+
+        This endpoint verifies the user's OTP and National ID. If valid, it generates a login token. 
+        If the user does not exist, it fetches the user details from an external API and creates a new user.
+        
+        Parameters:
+            uniqueIdentifier (str): National ID or unique identifier of the user.
+            otp (str): One-Time Password (OTP) sent to the user.
+            reference (str, optional): Reference ID for referrals.
+
+        Responses:
+            200: {"access": "<JWT token>"}
+            400: {"message": "Invalid OTP" / "National ID and OTP are required"}
+            429: {"message": "Account locked due to too many attempts"}
+        """
         uniqueIdentifier = request.data.get('uniqueIdentifier')
         otp = request.data.get('otp')
         reference = request.data.get('reference')  
@@ -354,8 +410,20 @@ class LoginViewset(APIView):
 
 # done
 class InformationViewset (APIView) :
+    """
+    This view returns the complete profile information for a user, including account details, addresses, 
+    personal information, financial information, job information, and  if user is legal person entity legal and stakeholders and shareholders.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request) :
+        """
+        Fetches detailed profile information for the authenticated user.
+
+        Returns user's account details, addresses, personal information, financial info, job info,
+        and legal person details if applicable.
+        """
+
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -402,10 +470,29 @@ class InformationViewset (APIView) :
     
 
 #otp for admin
-# done
 class OtpAdminViewset(APIView) :
+    """
+    This view is used for generating and sending OTP to admin users after CAPTCHA verification.
+    """
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+
     def post (self,request) :
+        """
+        Generate and send OTP to admin.
+
+        This endpoint verifies the provided CAPTCHA code, checks the admin's unique identifier, 
+        and generates a one-time password (OTP) which is sent to the admin's registered mobile number.
+
+        Parameters:
+            encrypted_response (str): Encrypted CAPTCHA response.
+            captcha (str): User-entered CAPTCHA code.
+            uniqueIdentifier (str): National ID or unique identifier of the admin.
+
+        Responses:
+            200: {"message": "OTP has been sent"}
+            400: {"message": "Invalid CAPTCHA" / "National ID is required"}
+            429: {"error": "Please wait 2 minutes before requesting a new OTP"}
+        """
         captcha = GuardPyCaptcha()
         encrypted_response = request.data['encrypted_response']
         captcha_obj = Captcha.objects.filter(encrypted_response=encrypted_response,enabled=True).first()
@@ -446,13 +533,31 @@ class OtpAdminViewset(APIView) :
         return Response({'message' : 'کد تایید ارسال شد' },status=status.HTTP_200_OK)
 
 
-
-
 # login for admin
-# done
 class LoginAdminViewset(APIView) :
+    """
+    This view handles admin login using National ID and OTP code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request) :
+        """
+        Authenticate admin login.
+
+        This endpoint verifies the provided National ID and OTP code. If successful, it generates an access token. 
+        If the OTP code is incorrect or expired, the admin account will be locked temporarily after multiple failed attempts.
+
+        Parameters:
+            uniqueIdentifier (str): National ID or unique identifier of the admin.
+            code (str): OTP code sent to the admin.
+
+        Responses:
+            200: {"access": "<JWT token>"}
+            400: {"message": "Invalid OTP" / "National ID and OTP required"}
+            404: {"message": "National ID not found"}
+            429: {"message": "Account locked due to too many attempts"}
+        
+        """
         uniqueIdentifier = request.data.get('uniqueIdentifier')
         code = request.data.get('code')
         if not uniqueIdentifier or not code:
@@ -489,11 +594,20 @@ class LoginAdminViewset(APIView) :
         return Response({'access': token}, status=status.HTTP_200_OK)
 
 
-
-# done
+# user list for admin
 class UserListViewset (APIView) :
+    """
+    This view returns a list of all users for admin, including detailed information such as addresses, 
+    personal info, financial info, job info, and legal entities associated with each user.
+    """
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self, request) :
+        """
+        Retrieves a list of all users for admin with detailed information.
+
+        This endpoint provides a complete list of users for admin, including details such as addresses, 
+        personal info, financial info, job info, and legal entities.
+        """
         Authorization = request.headers.get('Authorization')    
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -548,10 +662,20 @@ class UserListViewset (APIView) :
         return Response(user_list, status=status.HTTP_200_OK)
 
 
-# done
+# user one for admin
 class UserOneViewset(APIView) :
+    """
+    This view returns detailed information for a specific user for admin, including addresses, 
+    personal info, financial info, job info, and trading codes.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,id) :
+        """
+        Retrieve detailed information for a specific user by admin.
+
+        This endpoint returns the user’s detailed information, including addresses, personal info, financial info, job info, and trading codes.
+        """
         Authorization = request.headers.get('Authorization')    
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -587,10 +711,22 @@ class UserOneViewset(APIView) :
 
         return Response({'success': combined_data}, status=status.HTTP_200_OK)
 
-# done
+
+# otp for update information for admin
 class OtpUpdateViewset(APIView) :
+    """
+    This view allows an admin to send an OTP to a user through the Sejam system.
+
+    Rate limit: Each IP can send up to 5 requests per minute.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request) :
+        """
+        Send OTP through Sejam system for a specified user.
+
+        This endpoint sends an OTP to a user through the Sejam system based on the provided National ID.
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -615,11 +751,19 @@ class OtpUpdateViewset(APIView) :
         return Response ({'message' : 'کد تایید از طریق سامانه سجام ارسال شد'},status=status.HTTP_200_OK)
             
 
-
-# done
+# update information for admin
 class UpdateInformationViewset(APIView) :
+    """
+    This view allows an admin to update user information with data received from the Sejam system.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
     def patch(self, request):
+        """
+        Update user information based on Sejam data.
+
+        This endpoint allows an admin to update a user's information, including accounts, addresses, and legal entities, with data received from the Sejam system.
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -818,10 +962,19 @@ class UpdateInformationViewset(APIView) :
         return Response({'success': True}, status=status.HTTP_200_OK)
     
 
-
+# add bours code for legal person
 class AddBoursCodeUserViewset(APIView):
+    """
+    This view allows a user to add a Bours (trading) code if they are a legal entity.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self, request) :
+        """
+            Add Bours (trading) code for a legal entity user.
+
+            This endpoint allows a user who is a legal entity to add a Bours code if they are verified as such.
+        """
         Authorization = request.headers.get('Authorization')    
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -842,13 +995,19 @@ class AddBoursCodeUserViewset(APIView):
             return Response({'message': 'Not a legal person'}, status=status.HTTP_200_OK)
     
 
-
-
-
-
+# logout for user
 class LogoutViewset(APIView):
+    """
+    This view logs out the user by blacklisting their token.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request):
+        """
+        Log out the user by blacklisting their token.
+
+        This endpoint logs out the user by adding their token to the blacklist.
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)

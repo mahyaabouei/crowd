@@ -55,6 +55,7 @@ else:
     CORS_ALLOWED_ORIGINS = [
         "https://admincrowd.isatispooya.com",
         "https://mycrowd.isatispooya.com",
+        "https://crowd.isatispooya.com",
     ]
 
 # Application definition
@@ -129,7 +130,7 @@ DATABASES = {
 #         'ENGINE': 'django.db.backends.postgresql',
 #         'NAME': 'crowd',
 #         'USER': 'postgres',
-#         'PASSWORD': 'isatis-1403',
+#         'PASSWORD': 'admin123',
 #         'HOST':'localhost',
 #         'PORT': '5432',
 #     }

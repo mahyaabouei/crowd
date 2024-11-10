@@ -241,12 +241,65 @@ class PlanViewset(APIView):
         return Response(response_data, status=status.HTTP_200_OK)
         
 
-# done
-# list + information
-# update
 class PlansViewset(APIView):
+    """
+    This view provides a list of all plans with their associated information and allows updating of plan details by fetching 
+    and syncing data from an external API.
+    """
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self, request):
+        """
+        Retrieve a list of all plans along with detailed associated information.
+
+        This method retrieves all available plans along with their respective information, including board members, 
+        shareholders, associated companies, and plan pictures.
+
+        Responses:
+            200: [
+                {
+                    "plan": {
+                        "trace_code": <trace_code>,
+                        "title": <plan_title>,
+                        ...
+                    },
+                    "board_members": [
+                        {
+                            "first_name": <member_first_name>,
+                            "last_name": <member_last_name>,
+                            "organization_post_description": <post_description>,
+                            ...
+                        },
+                        ...
+                    ],
+                    "shareholder": [
+                        {
+                            "share_percent": <share_percentage>,
+                            "first_name": <shareholder_first_name>,
+                            "last_name": <shareholder_last_name>,
+                            ...
+                        },
+                        ...
+                    ],
+                    "company": [
+                        {
+                            "company_name": <company_name>,
+                            "company_national_id": <company_national_id>,
+                            ...
+                        },
+                        ...
+                    ],
+                    "picture_plan": {
+                        "image_url": <image_url>,
+                        ...
+                    },
+                    "information_complete": {
+                        "payment_date": <start_date>,
+                        ...
+                    }
+                },
+                ...
+            ]
+        """
         plans = Plan.objects.all()
         result = []
 
@@ -299,8 +352,27 @@ class PlansViewset(APIView):
             result.append(data)
 
         return Response(result, status=status.HTTP_200_OK)
+   
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
     def patch(self, request):
+        """
+        Update plans by syncing data from an external API.
+
+        This method authenticates the admin using the Authorization header and synchronizes plan details by fetching data 
+        from an external API. It updates existing plans or creates new ones if they do not already exist.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+
+        Responses:
+            200: {"message": "بروزرسانی از فرابورس انجام شد"}
+            400: {"error": "Authorization header is missing"}
+            404: {"error": "admin not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -434,11 +506,40 @@ class PlansViewset(APIView):
 
 
         return Response({'message':'بروزرسانی از فرابورس انجام شد'}, status=status.HTTP_200_OK)
-# done
+
 
 class AppendicesViewset(APIView) :
+    """
+    This view allows admins to upload, retrieve, and delete appendices associated with a specific plan, identified by the plan's trace code.
+    """
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post (self,request,trace_code) :
+        """
+        Upload an appendix file for a specific plan.
+
+        This method authenticates the admin using the Authorization header and allows them to upload a new appendix 
+        file associated with a plan identified by its trace code.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+        - If the file data is invalid or missing, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+            - file (file, form-data): The file to be uploaded as an appendix.
+
+        Responses:
+            200: {
+                "id": <appendix_id>,
+                "file": <file_url>,
+                "description": <description>,
+                ...
+            }
+            400: {"error": "Authorization header is missing" / "File data is invalid"}
+            404: {"error": "admin not found" / "Plan not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -458,8 +559,33 @@ class AppendicesViewset(APIView) :
         serializer.save(plan=plan)
         return Response (serializer.data, status=status.HTTP_200_OK)
     
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
+        """
+        Retrieve all appendix files for a specific plan.
+
+        This method retrieves all appendices associated with a plan identified by its trace code. It returns 
+        information for each appendix file including file URLs and descriptions.
+
+        - If the plan with the specified trace code does not exist, an error is returned.
+        - If no appendices are found for the specified plan, an error is returned.
+
+        Parameters:
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: [
+                {
+                    "id": <appendix_id>,
+                    "file": <file_url>,
+                    "description": <description>,
+                    ...
+                },
+                ...
+            ]
+            404: {"error": "Plan not found" / "Appendices not found"}
+        """
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
             return Response({'error': 'Plan not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -468,8 +594,29 @@ class AppendicesViewset(APIView) :
             return Response({'error': 'Appendices not found'}, status=status.HTTP_404_NOT_FOUND)
         serializer = serializers.AppendicesSerializer(appendices, many= True)
         return Response(serializer.data , status=status.HTTP_200_OK)
+    
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method='DELETE', block=True))
     def delete(self,request,trace_code):
+        """
+        Delete a specific appendix by its ID.
+
+        This method authenticates the admin using the Authorization header and deletes an appendix identified by 
+        its unique ID. 
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the appendix with the specified ID does not exist, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (int, path): Unique identifier for the appendix.
+
+        Responses:
+            200: {"message": "success"}
+            400: {"error": "Authorization header is missing"}
+            404: {"error": "admin not found" / "Appendices not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -482,11 +629,43 @@ class AppendicesViewset(APIView) :
             return Response({'error': 'Appendices not found'}, status=status.HTTP_404_NOT_FOUND)
         appendices.delete()
         return Response({'message':'succes'} , status=status.HTTP_200_OK)
-    
-# done
+
+
 class DocumentationViewset(APIView) :
+    """
+    This view allows admins to upload, retrieve, and delete documentation files associated with a specific plan, identified by the plan's trace code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self,request,trace_code) :
+    def post(self, request, trace_code):
+        """
+        Upload a documentation file for a specific plan.
+
+        This method authenticates the admin using the Authorization header and allows them to upload a new documentation 
+        file associated with a plan identified by its trace code.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+        - If the file data is invalid or missing, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+            - file (file, form-data): The file to be uploaded as documentation.
+
+        Responses:
+            200: {
+                "data": {
+                    "id": <documentation_id>,
+                    "file": <file_url>,
+                    "description": <description>,
+                    ...
+                }
+            }
+            400: {"error": "Authorization header is missing" / "File data is invalid"}
+            404: {"error": "admin not found" / "Plan not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -508,8 +687,33 @@ class DocumentationViewset(APIView) :
 
         serializer.save(plan=plan)
         return Response ({'data' : serializer.data} , status=status.HTTP_200_OK)
+    
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
+        """
+        Retrieve all documentation files for a specific plan.
+
+        This method retrieves all documentation files associated with a plan identified by its trace code. 
+        Each file entry includes its URL, description, and other metadata.
+
+        - If the plan with the specified trace code does not exist, an error is returned.
+
+        Parameters:
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: [
+                {
+                    "id": <documentation_id>,
+                    "file": <file_url>,
+                    "description": <description>,
+                    ...
+                },
+                ...
+            ]
+            404: {"error": "Plan not found"}
+        """
 
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
@@ -517,8 +721,29 @@ class DocumentationViewset(APIView) :
         ducumentation = DocumentationFiles.objects.filter(plan=plan)
         serializer = serializers.DocumentationSerializer(ducumentation, many= True)
         return Response(serializer.data , status=status.HTTP_200_OK)
+    
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method='DELETE', block=True))
     def delete(self,request,trace_code):
+        """
+        Delete a specific documentation file by its ID.
+
+        This method authenticates the admin using the Authorization header and deletes a documentation file identified by 
+        its unique ID. 
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the documentation file with the specified ID does not exist, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (int, path): Unique identifier for the documentation file.
+
+        Responses:
+            200: {"message": "success"}
+            400: {"error": "Authorization header is missing"}
+            404: {"error": "admin not found" / "Appendices not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -531,10 +756,43 @@ class DocumentationViewset(APIView) :
             return Response({'error': 'Appendices not found'}, status=status.HTTP_404_NOT_FOUND)
         appendices.delete()
         return Response({'message':'succses'} , status=status.HTTP_200_OK)
-# done
-class CommentAdminViewset (APIView) :
+    
+
+class CommentAdminViewset(APIView):
+    """
+    This view allows admins to retrieve and update comments associated with a specific plan, identified by the plan's trace code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self,request,trace_code) :
+    def get(self, request, trace_code):
+        """
+        Retrieve all comments for a specific plan.
+
+        This method authenticates the admin using the Authorization header and retrieves all comments associated with a 
+        plan identified by its trace code. If a comment has no answer, it is marked as "Awaiting Response" and saved.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: [
+                {
+                    "id": <comment_id>,
+                    "content": <comment_content>,
+                    "answer": <answer>,
+                    "date_created": <date>,
+                    ...
+                },
+                ...
+            ]
+            400: {"error": "Authorization header is missing"}
+            404: {"error": "admin not found" / "Plan not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -554,8 +812,36 @@ class CommentAdminViewset (APIView) :
 
         serializer = serializers.CommenttSerializer(comments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
     def patch (self,request,trace_code) :
+        """
+        Update a specific comment by adding or modifying its answer.
+
+        This method authenticates the admin using the Authorization header and allows them to update the answer for 
+        a specific comment identified by its unique ID. If no answer is provided, it defaults to "Awaiting Response".
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the comment with the specified ID does not exist, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (int, path): Unique identifier for the comment.
+            - answer (str, body): The answer to the comment (optional, defaults to "Awaiting Response").
+
+        Responses:
+            200: {
+                "id": <comment_id>,
+                "content": <comment_content>,
+                "answer": <updated_answer>,
+                "date_created": <date>,
+                ...
+            }
+            400: {"error": "Authorization header is missing"}
+            404: {"error": "admin not found" / "Comment not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -574,10 +860,36 @@ class CommentAdminViewset (APIView) :
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-# done
-class CommentViewset (APIView):
+
+class CommentViewset(APIView):
+    """
+    This view allows authenticated users to post and retrieve comments associated with a specific plan, identified by the plan's trace code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self,request,trace_code):
+    def post(self, request, trace_code):
+        """
+        Submit a new comment for a specific plan.
+
+        This method authenticates the user using the Authorization header and allows them to submit a comment associated with a plan 
+        identified by its trace code. Comments are initially marked as "Awaiting Response" for the answer.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the user's authorization token is invalid or the user is not found, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+        - If the comment text is missing, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): User's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+            - known (bool, body): Indicates if the comment is anonymous (optional, defaults to False).
+            - comment (str, body): The text of the comment.
+
+        Responses:
+            200: True
+            400: {"error": "Authorization header is missing"}
+            404: {"error": "user not found" / "plan not found" / "Comment not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -596,8 +908,40 @@ class CommentViewset (APIView):
         comment = Comment(plan=plan , user=user, known=data['known'] ,comment= data['comment'] ,answer='منتظر پاسخ')
         comment.save()
         return Response(True,status=status.HTTP_200_OK)
+    
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
+        """
+        Retrieve all approved comments for a specific plan.
+
+        This method authenticates the user using the Authorization header and retrieves all comments associated with 
+        a plan identified by its trace code that have been marked as approved (status=True).
+
+        - If the Authorization header is missing, an error is returned.
+        - If the user's authorization token is invalid or the user is not found, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+        - If no approved comments exist for the specified plan, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): User's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: [
+                {
+                    "id": <comment_id>,
+                    "user": <user_id>,
+                    "comment": <comment_text>,
+                    "answer": <answer>,
+                    "date_created": <date>,
+                    ...
+                },
+                ...
+            ]
+            400: {"error": "Authorization header is missing"}
+            404: {"error": "user not found" / "Plan not found" / "privatePerson not found" / "comments not found or no status true"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -622,10 +966,37 @@ class CommentViewset (APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
-#done
-class SendpicturePlanViewset(APIView) :
+class SendpicturePlanViewset(APIView):
+    """
+    This view allows admins to upload and retrieve the picture associated with a specific plan, identified by the plan's trace code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self,request,trace_code) :
+    def post(self, request, trace_code):
+        """
+        Upload or update a picture for a specific plan.
+
+        This method authenticates the admin using the Authorization header and allows them to upload a picture 
+        associated with a plan identified by its trace code. If a picture already exists, it is replaced.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+        - If no picture file is uploaded, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+            - picture (file, form-data): The picture file to be uploaded.
+
+        Responses:
+            200: {
+                "success": True,
+                "message": "Picture updated successfully"
+            }
+            400: {"error": "Authorization header is missing" / "No picture file was uploaded"}
+            404: {"error": "admin not found" / "plan not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -648,6 +1019,25 @@ class SendpicturePlanViewset(APIView) :
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self,request,trace_code) :
+        """
+        Retrieve the picture associated with a specific plan.
+
+        This method retrieves the picture associated with a plan identified by its trace code. It returns the picture's 
+        file URL and other metadata.
+
+        - If the plan with the specified trace code does not exist, an error is returned.
+
+        Parameters:
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: {
+                "id": <picture_id>,
+                "picture": <picture_url>,
+                ...
+            }
+            404: {"error": "plan not found"}
+        """
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
             return Response({'error': 'plan not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -656,11 +1046,40 @@ class SendpicturePlanViewset(APIView) :
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# done
-# محدودیت پرداخت به دلیل امنیت غیر فعال شد
 class PaymentDocument(APIView):
+    """
+    This view allows authenticated users to create, retrieve, and update payment documents for a specific plan, identified by the plan's trace code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self,request,trace_code):
+    def post(self, request, trace_code):
+        """
+        Create a new payment document for a specific plan.
+
+        This method authenticates the user using the Authorization header and allows them to create a payment document 
+        for a plan identified by its trace code. The document includes details like the amount, payment ID, picture, and risk statement acknowledgment.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the user's authorization token is invalid or the user is not found, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+        - If the purchase amount exceeds available units or is outside permissible limits, an error is returned.
+        - Required fields like amount, payment ID, and risk statement must be provided.
+
+        Parameters:
+            - Authorization (str, header): User's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+            - amount (int, body): The number of units requested by the user.
+            - payment_id (str, body): Unique identifier for the payment transaction.
+            - description (str, body, optional): Additional payment description.
+            - risk_statement (bool, body): Acknowledgment of the risk statement (must be true).
+            - name_status (bool, body): Indicates if the user's name can be displayed.
+            - picture (file, form-data): Picture file of the payment document.
+
+        Responses:
+            200: "success"
+            400: {"error": "Authorization header is missing" / "amount not found" / "mismatched amount or risk statement not true"}
+            404: {"error": "user not found" / "plan not found" / "payment_id not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -672,38 +1091,38 @@ class PaymentDocument(APIView):
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
             return Response({'error': 'plan not found'}, status=status.HTTP_404_NOT_FOUND)
-        # information_plan = InformationPlan.objects.filter(plan=plan).first()
+        information_plan = InformationPlan.objects.filter(plan=plan).first()
         if not request.data.get('amount'):
             return Response({'error': 'amount not found'}, status=status.HTTP_404_NOT_FOUND)
         amount = int(request.data.get('amount')) # سهم درخواستی کاربر 
-        # amount_collected_now = information_plan.amount_collected_now # مبلغ جمه اوری شده تا به  الان
-        # plan_total_price = plan.total_units # کل سهم قابل عرضه برای طرح 
-        # purchaseable_amount = int(plan_total_price - amount_collected_now) # مبلغ قابل خرید همه کاربران 
-        # if amount > purchaseable_amount :
-        #     return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+        amount_collected_now = information_plan.amount_collected_now # مبلغ جمه اوری شده تا به  الان
+        plan_total_price = plan.total_units # کل سهم قابل عرضه برای طرح 
+        purchaseable_amount = int(plan_total_price - amount_collected_now) # مبلغ قابل خرید همه کاربران 
+        if amount > purchaseable_amount :
+            return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # if legal_user == True : 
-        #     amount_legal_min = plan.legal_person_minimum_availabe_price #حداقل سهم قابل خرید حقوقی 
-        #     amount_legal_max = plan.legal_person_maximum_availabe_price #حداکثر سهم قابل خرید حقوقی
+        if legal_user == True : 
+            amount_legal_min = plan.legal_person_minimum_availabe_price #حداقل سهم قابل خرید حقوقی 
+            amount_legal_max = plan.legal_person_maximum_availabe_price #حداکثر سهم قابل خرید حقوقی
             
-        #     if amount_legal_min is not None and amount_legal_max is not None :
-        #         if amount < amount_legal_min or amount > amount_legal_max:
-        #             return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
-        #     else :
-        #         if amount > purchaseable_amount :
-        #             return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+            if amount_legal_min is not None and amount_legal_max is not None :
+                if amount < amount_legal_min or amount > amount_legal_max:
+                    return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
+            else :
+                if amount > purchaseable_amount :
+                    return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
                   
                 
-        # if legal_user == False :
-        #     amount_personal_min = plan.real_person_minimum_availabe_price  #حداقل سهم قابل خرید حقیقی
-        #     amount_personal_max = plan.real_person_maximum_available_price #حداکثر سهم قابل خرید حقیقی
-        #     if amount_personal_min is not None and amount_personal_max is not None:
-        #         if amount < amount_personal_min or amount > amount_personal_max :
-        #             return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
+        if legal_user == False :
+            amount_personal_min = plan.real_person_minimum_availabe_price  #حداقل سهم قابل خرید حقیقی
+            amount_personal_max = plan.real_person_maximum_available_price #حداکثر سهم قابل خرید حقیقی
+            if amount_personal_min is not None and amount_personal_max is not None:
+                if amount < amount_personal_min or amount > amount_personal_max :
+                    return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
             
-        #     else :
-        #         if amount > purchaseable_amount :
-        #             return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+            else :
+                if amount > purchaseable_amount :
+                    return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
                   
 
 
@@ -737,8 +1156,38 @@ class PaymentDocument(APIView):
         payment.save()
         return Response('success')
     
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self,request,trace_code):
+        """
+        Retrieve all payment documents for a specific plan.
+
+        This method retrieves payment documents associated with a plan identified by its trace code. 
+        If requested by an admin, the complete list is returned; if requested by a user, only completed payments are returned.
+
+        - If the Authorization header is missing, an error is returned.
+        - If both the user's and admin's authorization tokens are invalid, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Authorization token for user or admin.
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: [
+                {
+                    "amount": <amount>,
+                    "value": <total_value>,
+                    "create_date": <date>,
+                    "fullname": <user_fullname or "نامشخص">,
+                    ...
+                },
+                ...
+            ]
+            400: {"error": "Authorization header is missing"}
+            401: {"error": "Authorization not found"}
+            404: {"error": "plan not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -780,6 +1229,33 @@ class PaymentDocument(APIView):
             
     @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
     def patch (self,request,trace_code) :
+        """
+        Update a specific payment document status by its ID.
+
+        This method authenticates the admin using the Authorization header and allows them to update the status 
+        of a payment document for a plan identified by its trace code. It updates the collected amount based on valid payments.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+        - If the payment document with the specified ID does not exist, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+            - id (int, body): ID of the payment document to update.
+            - status (str, body): The updated status of the payment document (optional).
+
+        Responses:
+            200: {
+                "id": <payment_id>,
+                "amount": <amount>,
+                "value": <total_value>,
+                ...
+            }
+            400: {"error": "Authorization header is missing"}
+            404: {"error": "admin not found" / "plan not found" / "payments not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -810,8 +1286,45 @@ class PaymentDocument(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class PaymentUser(APIView):
+    """
+    This view allows authenticated users to retrieve their payment documents associated with a specific plan, identified by the plan's trace code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get(self,request,trace_code):
+    def get(self, request, trace_code):
+        """
+        Retrieve all payment documents for the authenticated user related to a specific plan.
+
+        This method authenticates the user using the Authorization header and retrieves all payment documents 
+        associated with a plan identified by its trace code for the currently authenticated user.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the user's authorization token is invalid or the user is not found, an error is returned.
+        - If the plan with the specified trace code does not exist, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): User's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: [
+                {
+                    "id": <payment_id>,
+                    "plan": <plan_id>,
+                    "user": <user_id>,
+                    "amount": <amount>,
+                    "value": <total_value>,
+                    "status": <status>,
+                    "payment_id": <payment_id>,
+                    "create_date": <create_date>,
+                    ...
+                },
+                ...
+            ]
+            400: {"error": "Authorization header is missing"}
+            401: {"error": "Authorization not found"}
+            404: {"error": "plan not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -827,10 +1340,44 @@ class PaymentUser(APIView):
         response = serializers.PaymentGatewaySerializer(payments,many=True)
         return Response(response.data, status=status.HTTP_200_OK)
 
-# done
-class ParticipantViewset(APIView) :
+
+class ParticipantViewset(APIView):
+    """
+    This view allows admins to retrieve a list of participants who have successfully completed payments (status=3) for a specific plan.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get(self, request,trace_code):
+    def get(self, request, trace_code):
+        """
+        Retrieve all participants for a specific plan with successful payments.
+
+        This method checks the Authorization header to determine if the request is from an admin. If the user is an admin, 
+        the participant's names are fully displayed. If not, names are only shown if allowed by the participant's `name_status`.
+        
+        - If the Authorization header is missing or invalid, access is denied.
+        - If the specified plan does not exist, an error is returned.
+        - If no participants with a completed payment status (status=3) are found, an error is returned.
+
+        Parameters:
+            - Authorization (str, header, optional): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: [
+                {
+                    "id": <payment_id>,
+                    "plan": <plan_id>,
+                    "user": <user_id>,
+                    "amount": <amount>,
+                    "value": <total_value>,
+                    "create_date": <create_date>,
+                    "name": <participant_name or "نامشخص">,
+                    ...
+                },
+                ...
+            ]
+            404: {"error": "admin not found" / "plan not found" / "participant not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if  Authorization:
             admin = fun.decryptionadmin(Authorization)
@@ -865,8 +1412,38 @@ class ParticipantViewset(APIView) :
 
 
 class Certificate(APIView):
+    """
+    This view allows users to request and download a participation certificate in PDF format for a specific plan, 
+    identified by the plan's trace code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self,request,trace_code):
+    def post(self, request, trace_code):
+        """
+        Request a participation certificate for a specific plan.
+
+        This method authenticates the user using the Authorization header and generates a participation certificate 
+        in PDF format for a specific plan identified by its trace code. The certificate is saved in the media directory, 
+        and the URL for the downloaded file is returned.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the user's authorization token is invalid or the user is not found, an error is returned.
+        - If the specified plan does not exist, an error is returned.
+        - If the API request to retrieve the participation report fails, an error with the response from the external API is returned.
+
+        Parameters:
+            - Authorization (str, header): User's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: {
+                "url": "/media/reports/<trace_code>_<user_uniqueIdentifier>.pdf"
+            }
+            400: {"error": "Authorization header is missing"}
+            401: {"error": "Authorization not found"}
+            404: {"error": "plan not found"}
+            200 (API Error): <External API error response in JSON format>
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -889,9 +1466,47 @@ class Certificate(APIView):
         return Response({'url':f'/media/reports/{file_name}'},status=status.HTTP_200_OK)
 
  
-class InformationPlanViewset(APIView) :
+class InformationPlanViewset(APIView):
+    """
+    This view allows admins to create or update information for a specific plan and retrieve information details 
+    for a plan identified by its trace code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self,request,trace_code):
+    def post(self, request, trace_code):
+        """
+        Create or update information for a specific plan.
+
+        This method authenticates the admin using the Authorization header and allows them to create or update 
+        information for a plan identified by its trace code. Information includes details like the rate of return, 
+        status, visibility, and payment date.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the specified plan does not exist, an error is returned.
+        - If the status value is outside the accepted range, it defaults to '1'.
+        - The payment date, if provided, should be a Unix timestamp.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+            - rate_of_return (float, body, optional): Rate of return for the plan.
+            - status_second (str, body, optional): Secondary status of the plan (default '1').
+            - status_show (bool, body, optional): Indicates if the plan status should be publicly visible.
+            - payment_date (int, body, optional): Payment date as a Unix timestamp (milliseconds).
+
+        Responses:
+            200: {
+                "plan": <plan_id>,
+                "rate_of_return": <rate_of_return>,
+                "status_second": <status_second>,
+                "status_show": <status_show>,
+                "payment_date": <payment_date>,
+                ...
+            }
+            400: {"error": "Authorization header is missing" / "Invalid plan status"}
+            404: {"error": "admin not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -916,8 +1531,32 @@ class InformationPlanViewset(APIView) :
         
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self,request,trace_code) : 
+        """
+        Retrieve information details for a specific plan.
+
+        This method retrieves information details for a plan identified by its trace code. The information includes 
+        details like rate of return, status, visibility, and payment date.
+
+        - If the specified plan does not exist, an error is returned.
+
+        Parameters:
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: {
+                "plan": <plan_id>,
+                "rate_of_return": <rate_of_return>,
+                "status_second": <status_second>,
+                "status_show": <status_show>,
+                "payment_date": <payment_date>,
+                ...
+            }
+            400: {"error": "Invalid plan status"}
+        """
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan :
             return Response({'error': 'Invalid plan status'}, status=status.HTTP_400_BAD_REQUEST)
@@ -926,12 +1565,42 @@ class InformationPlanViewset(APIView) :
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class EndOfFundraisingViewset(APIView):
+    """
+    This view allows admins to create, update, and retrieve end-of-fundraising information for a specific plan, identified by its trace code.
+    """
 
-
-#done
-class EndOfFundraisingViewset(APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self,request,trace_code):
+    def post(self, request, trace_code):
+        """
+        Update existing end-of-fundraising records for a specific plan.
+
+        This method authenticates the admin using the Authorization header and allows them to update end-of-fundraising
+        records for a specific plan identified by its trace code. Each item to be updated should include an `id`.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the specified plan or its associated information record does not exist, an error is returned.
+        - If any end-of-fundraising item with a specified ID is not found, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+            - data (list, body): List of end-of-fundraising items with fields:
+                - id (int): The unique ID of the fundraising record.
+                - amount_operator (float, optional): Operator-set amount.
+                - date_operator (str, optional): Operator-set date.
+                - date_capitalization_operator (str, optional): Operator-set capitalization date.
+                - type (int, optional): Type of the fundraising entry.
+
+        Responses:
+            200: {
+                "date_payement": [...updated end-fundraising items...],
+                "date_start": <payment_date>
+            }
+            400: {"error": "Authorization header is missing" / "ID is required for each fundraising item"}
+            404: {"error": "admin not found" / "plan not found" / "information plan not found" / "end of fundraising not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -985,6 +1654,29 @@ class EndOfFundraisingViewset(APIView) :
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self,request,trace_code) : 
+        """
+        Retrieve end-of-fundraising records for a specific plan.
+
+        This method authenticates the admin using the Authorization header and retrieves end-of-fundraising records 
+        associated with a specific plan identified by its trace code. If no records exist, default fundraising 
+        records are generated based on plan details.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - If the specified plan or its associated information record does not exist, an error is returned.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: {
+                "date_payments": [...end-fundraising items...],
+                "date_start": <payment_date>
+            }
+            400: {"error": "Authorization header is missing" / "Invalid plan status"}
+            404: {"error": "admin not found" / "information plan not found"}
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1058,10 +1750,45 @@ class EndOfFundraisingViewset(APIView) :
             return Response({'date_payments' : serializer.data, 'date_start' : date_payement}, status=status.HTTP_200_OK)
         
 
-# done
-class SendPaymentToFarabours(APIView) :
+class SendPaymentToFarabours(APIView):
+    """
+    This view allows admins to send payment information for a financing provider to Farabours.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self,request,trace_code) :
+    def post(self, request, trace_code):
+        """
+        Send payment details to Farabours.
+
+        This method authenticates the admin using the Authorization header and sends payment details for a specific
+        project financing provider to Farabours. It gathers details from the request body and constructs a
+        `ProjectFinancingProvider` instance for the payment.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - Payment details including `projectID`, `nationalID`, and other relevant fields are required in the request body.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the project.
+            - data (object, body): Payment details with fields:
+                - projectID (str): The project identifier.
+                - nationalID (str): The financing provider's national ID.
+                - isLegal (bool): Indicates if the provider is a legal entity.
+                - firstName (str, optional): The first name of the financing provider.
+                - lastNameOrCompanyName (str): Last name or company name of the provider.
+                - providedFinancePrice (float): The amount of financing provided.
+                - bourseCode (str): The provider’s bourse code.
+                - paymentDate (str): The payment date.
+                - shebaBankAccountNumber (str): The SHEBA bank account number.
+                - mobileNumber (str): The provider's mobile number.
+                - bankTrackingNumber (str, optional): The bank tracking number for the payment.
+
+        Responses:
+            200: { "message": "Payment details sent successfully." }
+            400: { "error": "Authorization header is missing" }
+            404: { "error": "admin not found" }
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1086,12 +1813,36 @@ class SendPaymentToFarabours(APIView) :
         return Response (status=status.HTTP_200_OK)
 
 
-
-
-# done
 class SendParticipationCertificateToFaraboursViewset(APIView):
+    """
+    This view sends participation certificate data to Farabours for approved payments.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request, trace_code):
+        """
+        Send Participation Certificates to Farabours.
+
+        This method validates the admin's authorization and processes approved payments (`status = '3'`)
+        for the specified plan. Each payment's information, such as user details, finance price, and bank
+        tracking number, is serialized and sent to the Farabours API.
+
+        - If the Authorization header is missing, an error is returned.
+        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
+        - Only payments with `status = '3'` and `send_farabours = False` are processed.
+        - After successfully sending to Farabours, each payment's `send_farabours` status is updated.
+
+        Parameters:
+            - Authorization (str, header): Admin's authorization token.
+            - trace_code (str, path): Unique identifier for the project.
+            - data (object, body): Contains payment details for each project financing provider.
+
+        Responses:
+            200: { "message": "Participation certificates sent successfully." }
+            400: { "error": "Authorization header is missing" }
+            400: { "error": "plan not found" }
+            400: { "error": "payment not found" }
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1146,79 +1897,35 @@ class SendParticipationCertificateToFaraboursViewset(APIView):
         return Response(True, status=status.HTTP_200_OK)
 
 
-# done
-# save payment exel
-class ShareholdersListExelViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get(self, request, key):
-        key_value = 'mahya1234'
-        url_key = key  
-        if url_key != key_value:
-            return Response({'error': 'key is missing'}, status=status.HTTP_400_BAD_REQUEST)
+class WarrantyAdminViewset(APIView):
+    """
+    This view is used to manage warranties associated with a specific plan. It provides
+    endpoints for adding, retrieving, updating, and deleting warranties.
+    """
 
-        if request.FILES:
-            file = request.FILES['file']
-            df = pd.read_csv(file)
-
-
-
-            # df['تعداد'] = df['مبلغ سفارش']/df['قیمت اسمی هر واحد']
-            if not df.empty:
-                for index, row in df.iterrows(): 
-                    trace_code_values = row['شناسه طرح']
-                    plan = Plan.objects.filter(trace_code= trace_code_values).first()
-                
-                    if not plan :
-                        return Response({'error': f'plan not found {trace_code_values}'}, status=status.HTTP_400_BAD_REQUEST)
-                    national_code = str(row['کد ملی']) if not pd.isna(row['کد ملی']) else ''
-                    national_code = str(national_code).replace("'", "")
-                    if row['روش پرداخت'] == 'اینترنتی' :
-                        document = False
-                    else :
-                        document = True
-
-
-                    # date_string = str(row['تاریخ سفارش']).strip()
-                    # gregorian_date = datetime.datetime.strptime(date_string, '%d/%m/%Y %H:%M')
-
-
-                    data = PaymentGateway.objects.update_or_create(
-                        plan = plan,
-                        user =str ( row['کد ملی']).replace("'", ""),
-                        amount =  row['تعداد گواهی'],
-                        value =  row['مبلغ سفارش'],
-                        payment_id =  row['شناسه سفارش'],
-                        document = document,
-                        # create_date =  None,
-                        risk_statement = True,
-                        status =  '3',
-                        send_farabours = True,
-                        name_status = False,
-                    )
-# update information plan 
-                df['مبلغ سفارش'] = df['مبلغ سفارش'].apply(int)
-                value =df[['مبلغ سفارش','شناسه طرح']].groupby(by=['شناسه طرح']).sum()
-                for i in value.index:
-                    plan = Plan.objects.filter(trace_code= i).first()
-
-                    if not plan :
-                        return Response ({'error' :'Not Found  plan'} , status = status.HTTP_400_BAD_REQUEST)
-
-                    information = InformationPlan.objects.filter(plan=plan).first()
-
-                    if not information :
-                        return Response ({'error' :'Not Found  planInformation'} , status = status.HTTP_400_BAD_REQUEST)
-                    information.amount_collected_now = value['مبلغ سفارش'][i]
-                    information.save()
-                    
-
-        return Response( True , status=status.HTTP_200_OK)
-    
-# done
-# ضمانت نامه
-class WarrantyAdminViewset(APIView) :
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post (self, request  ,*args, **kwargs) :
+    def post(self, request, *args, **kwargs):
+        """
+        Add a Warranty to a Plan.
+
+        This endpoint allows an admin to add a new warranty to a specific plan. The warranty
+        includes details such as the exporter, date, and type.
+
+        - Authorization is required.
+        - The plan must exist for the warranty to be added.
+
+        Parameters:
+            - Authorization (str, header): Admin authorization token.
+            - key (str, path): Plan trace code.
+            - date (int, body, optional): Timestamp of the warranty date.
+            - exporter (str, body): Name of the warranty exporter.
+            - kind_of_warranty (str, body): Type of warranty.
+
+        Responses:
+            200: A list of all warranties associated with the plan.
+            400: { "error": "Authorization header is missing" }
+            404: { "error": "plan not found" }
+        """
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -1252,8 +1959,24 @@ class WarrantyAdminViewset(APIView) :
 
         return Response (serializer.data ,  status= status.HTTP_200_OK)
     
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get (self, request  ,*args, **kwargs) :
+        """
+        Retrieve Warranties for a Plan.
+
+        This endpoint retrieves all warranties associated with a specific plan. 
+        The user must have admin privileges to access this data.
+
+        Parameters:
+            - Authorization (str, header): Admin authorization token.
+            - key (str, path): Plan trace code.
+
+        Responses:
+            200: A list of warranties for the specified plan.
+            400: { "error": "Authorization header is missing" }
+            404: { "error": "plan not found" }
+        """
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -1271,6 +1994,25 @@ class WarrantyAdminViewset(APIView) :
     
     @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
     def patch (self,request , *args, **kwargs):
+        """
+        Update an Existing Warranty.
+
+        This endpoint allows an admin to update an existing warranty's details, such as the date or
+        warranty type.
+
+        - The warranty ID is required to locate and update the correct warranty.
+
+        Parameters:
+            - Authorization (str, header): Admin authorization token.
+            - key (str, path): Plan trace code.
+            - id (int, body): ID of the warranty to be updated.
+            - date (int, body, optional): New timestamp for the warranty date.
+
+        Responses:
+            200: The updated warranty data.
+            400: { "error": "warranty ID is required" }
+            404: { "error": "warranty not found" }
+        """
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -1306,6 +2048,23 @@ class WarrantyAdminViewset(APIView) :
 
     @method_decorator(ratelimit(key='ip', rate='5/m', method='DELETE', block=True))
     def delete (self, request, *args, **kwargs):
+        """
+        Delete an Existing Warranty.
+
+        This endpoint allows an admin to delete a warranty associated with a specific plan.
+        
+        - The warranty ID is required to delete the correct warranty.
+
+        Parameters:
+            - Authorization (str, header): Admin authorization token.
+            - key (str, path): Plan trace code.
+            - id (int, body): ID of the warranty to be deleted.
+
+        Responses:
+            200: { "message": "Warranty successfully deleted" }
+            400: { "error": "warranty ID is required" }
+            404: { "error": "warranty not found" }
+        """
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -1327,12 +2086,36 @@ class WarrantyAdminViewset(APIView) :
         warranties.delete()
         return Response(True , status=status.HTTP_200_OK)
 
-# done
-# درگاه بانکی
-# محدودیت پرداخت به دلیل امنیت غیر فعال شد
-class TransmissionViewset(APIView) : 
+
+class TransmissionViewset(APIView):
+    """
+    This view handles purchasing and payment transactions for a specific plan.
+    It provides endpoints for initiating a purchase (POST) and confirming a transaction (GET).
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self,request ,*args, **kwargs):
+    def post(self, request, *args, **kwargs):
+        """
+        Initiate a Purchase Transaction.
+
+        This endpoint initiates a transaction for purchasing a specific amount in a plan.
+        It checks if the user has the necessary balance and if the purchase meets the minimum and maximum limits.
+
+        - Authorization is required.
+        - The user must be authenticated.
+        - The purchase amount is validated based on whether the user is a legal entity.
+
+        Parameters:
+            - Authorization (str, header): User authorization token.
+            - key (str, path): Plan trace code.
+            - amount (int, body): Requested purchase amount.
+            - name_status (bool, body, optional): Status to determine if the user's name should be displayed.
+
+        Responses:
+            200: A URL for completing the purchase transaction.
+            400: { "error": "Authorization header is missing" }
+            404: { "error": "User not found" }
+        """
         trace_code = kwargs.get('key')
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -1341,42 +2124,42 @@ class TransmissionViewset(APIView) :
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         user = user.first()
-        # legal_user = check_legal_person(user.uniqueIdentifier)
+        legal_user = check_legal_person(user.uniqueIdentifier)
 
         plan = Plan.objects.filter(trace_code=trace_code).first()
-        # information_plan = InformationPlan.objects.filter(plan=plan).first()
+        information_plan = InformationPlan.objects.filter(plan=plan).first()
 
 
         value = request.data.get('amount')  # مبلغ درخواستی کاربر برای خرید 
-        # amount_collected_now = information_plan.amount_collected_now # مبلغ جمه اوری شده تا به  الان
-        # plan_total_price = plan.total_units # کل سهم قابل عرضه برای طرح 
-        # purchaseable_amount = int(plan_total_price - amount_collected_now) # مبلغ قابل خرید همه کاربران 
+        amount_collected_now = information_plan.amount_collected_now # مبلغ جمه اوری شده تا به  الان
+        plan_total_price = plan.total_units # کل سهم قابل عرضه برای طرح 
+        purchaseable_amount = int(plan_total_price - amount_collected_now) # مبلغ قابل خرید همه کاربران 
 
-        # if value > purchaseable_amount :
-        #     return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+        if value > purchaseable_amount :
+            return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # if legal_user == True : 
-        #     amount_legal_min = plan.legal_person_minimum_availabe_price #حداقل سهم قابل خرید حقوقی 
-        #     amount_legal_max = plan.legal_person_maximum_availabe_price #حداکثر سهم قابل خرید حقوقی
+        if legal_user == True : 
+            amount_legal_min = plan.legal_person_minimum_availabe_price #حداقل سهم قابل خرید حقوقی 
+            amount_legal_max = plan.legal_person_maximum_availabe_price #حداکثر سهم قابل خرید حقوقی
             
-        #     if amount_legal_min is not None and amount_legal_max is not None :
-        #         if value < amount_legal_min or value > amount_legal_max:
-        #             return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
-        #     else :
-        #         if value > purchaseable_amount :
-        #             return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+            if amount_legal_min is not None and amount_legal_max is not None :
+                if value < amount_legal_min or value > amount_legal_max:
+                    return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
+            else :
+                if value > purchaseable_amount :
+                    return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
                   
                 
-        # else :
-        #     amount_personal_min = plan.real_person_minimum_availabe_price  #حداقل سهم قابل خرید حقیقی
-        #     amount_personal_max = plan.real_person_maximum_available_price #حداکثر سهم قابل خرید حقیقی
-        #     if amount_personal_min is not None and amount_personal_max is not None :
-        #         if value < amount_personal_min or value > amount_personal_max :
-        #             return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
+        else :
+            amount_personal_min = plan.real_person_minimum_availabe_price  #حداقل سهم قابل خرید حقیقی
+            amount_personal_max = plan.real_person_maximum_available_price #حداکثر سهم قابل خرید حقیقی
+            if amount_personal_min is not None and amount_personal_max is not None :
+                if value < amount_personal_min or value > amount_personal_max :
+                    return Response({'error': 'مبلغ بیشتر یا کمتر از  حد مجاز قرارداد شده است'}, status=status.HTTP_400_BAD_REQUEST)
             
-        #     else :
-        #         if value > purchaseable_amount :
-        #             return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
+            else :
+                if value > purchaseable_amount :
+                    return Response({'error': 'مبلغ بیشتر از سهم قابل خرید است'}, status=status.HTTP_400_BAD_REQUEST)
                   
 
             
@@ -1426,9 +2209,29 @@ class TransmissionViewset(APIView) :
 
         return Response({'url' : created['url'] }, status=status.HTTP_200_OK)
     
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     @transaction.atomic
     def get (self,request,*args, **kwargs):
+        """
+        Confirm a Transaction.
+
+        This endpoint confirms a transaction once the payment has been completed.
+        It updates the payment status, retrieves all related payment transactions, and saves
+        the total collected amount for the plan.
+
+        - Authorization is required.
+        - Transaction is updated to reflect a successful payment.
+
+        Parameters:
+            - Authorization (str, header): User authorization token.
+            - key (str, path): Invoice number for the transaction.
+
+        Responses:
+            200: Confirmation of the payment status.
+            400: { "error": "Authorization header is missing" }
+            404: { "error": "User not found" }
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1459,10 +2262,33 @@ class TransmissionViewset(APIView) :
             return Response({'error':'payment not found '}, status=status.HTTP_400_BAD_REQUEST)
         return Response(True , status=status.HTTP_200_OK)
 
-# فیش بانکی های کاربر
+
 class BankReceiptViewset(APIView):
+    """
+    This view provides an endpoint for retrieving bank receipt information for a specific payment.
+    The admin user can access the payment details using the payment ID.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self,request,id):
+    def get(self, request, id):
+        """
+        Retrieve Bank Receipt Information.
+
+        This endpoint retrieves the bank receipt details for a specified payment ID.
+        Admin authorization is required to access this endpoint.
+
+        - Authorization is required.
+        - Only accessible to admin users.
+
+        Parameters:
+            - Authorization (str, header): Admin authorization token.
+            - id (int, path): Unique ID of the payment record.
+
+        Responses:
+            200: Bank receipt information for the specified payment.
+            400: { "error": "Authorization header is missing" }
+            404: { "error": "admin not found" }
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1475,10 +2301,32 @@ class BankReceiptViewset(APIView):
         
         return Response (serializer.data,status=status.HTTP_200_OK)
 
-# گواهی مشارکت منو 
+
 class ParticipantMenuViewset(APIView):
+    """
+    This view provides a menu for participants to access the plans they have invested in.
+    Each plan that the authenticated user has participated in will be retrieved and displayed.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self,request):
+    def get(self, request):
+        """
+        Retrieve Participant's Plans Menu.
+
+        This endpoint retrieves a list of plans in which the authenticated user has invested,
+        specifically those marked as having been sent to Farabours.
+
+        - Authorization is required.
+        - Accessible by users who have made payments with `send_farabours` set to True.
+
+        Parameters:
+            - Authorization (str, header): User authorization token.
+
+        Responses:
+            200: List of plans the user has invested in.
+            400: { "error": "Authorization header is missing" }
+            404: { "error": "User not found" }
+        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1501,37 +2349,3 @@ class ParticipantMenuViewset(APIView):
     
 
     
-class RoadMapViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get (self,request,id) :
-        Authorization = request.headers.get('Authorization')
-        if not Authorization:
-            return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
-        user = fun.decryptionUser(Authorization)
-        if not user:
-            return Response({'error': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
-        user = user.first()
-        cart = Cart.objects.filter(user=user).first()
-        if not cart :
-            return Response ({'error': 'Cart not found'}, status=status.HTTP_400_BAD_REQUEST)
-        plan = Plan.objects.filter(id=id).first()
-        if not plan :
-            return Response ({'error': 'plan not found'}, status=status.HTTP_400_BAD_REQUEST)
-        date_cart = cart.creat
-        date_plan = None
-        date_end_plan = None
-        date_contract = None
-        list = {
-            'date_cart' : date_cart,
-            'date_plan' : '2024-09-24T08:44:41.701688Z',
-            'date_end_plan' : '2024-09-24T08:44:41.701688Z',
-            'date_contract' : '2024-09-24T08:44:41.701688Z'
-        }
-            
-        
-
-        return Response({'data': list}, status=status.HTTP_200_OK)
-
-
-
-

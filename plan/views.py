@@ -93,11 +93,79 @@ def check_legal_person(uniqueIdentifier) :
         return True
     return False
 
-# done
-# detial + information
+
 class PlanViewset(APIView):
+    """
+    This view provides detailed information about a specific plan, including plan details, board members, shareholders,
+    associated companies, and fundraising end dates, all identified by the plan's unique trace code.
+    """
+
     @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self, request, trace_code):
+        """
+        Retrieve detailed information for a specific plan by trace code.
+
+        This method retrieves comprehensive details about a plan, including board members, shareholders, the associated company,
+        and fundraising dates in both Gregorian and Jalali formats. The information includes both the plan's primary details 
+        and additional information such as start dates and end of fundraising information.
+
+        - If the plan with the specified trace code does not exist, a "Plan not found" message is returned.
+
+        Parameters:
+            - trace_code (str, path): Unique identifier for the plan.
+
+        Responses:
+            200: {
+                "plan": {
+                    "trace_code": <trace_code>,
+                    "title": <plan_title>,
+                    ...
+                },
+                "board_member": [
+                    {
+                        "first_name": <member_first_name>,
+                        "last_name": <member_last_name>,
+                        "organization_post_description": <post_description>,
+                        ...
+                    },
+                    ...
+                ],
+                "shareholder": [
+                    {
+                        "share_percent": <share_percentage>,
+                        "first_name": <shareholder_first_name>,
+                        "last_name": <shareholder_last_name>,
+                        ...
+                    },
+                    ...
+                ],
+                "company": [
+                    {
+                        "company_name": <company_name>,
+                        "company_national_id": <company_national_id>,
+                        ...
+                    },
+                    ...
+                ],
+                "picture_plan": {
+                    "image_url": <image_url>,
+                    ...
+                },
+                "information_complete": {
+                    "payment_date": <start_date>,
+                    ...
+                },
+                "date_start": <start_date>,
+                "date_profit": [
+                    {
+                        "type": <profit_type>,
+                        "date": <jalali_date>
+                    },
+                    ...
+                ]
+            }
+            404: {"message": "Plan not found"}
+        """
         plan = Plan.objects.filter(trace_code=trace_code).first()
         if not plan:
             return Response({'message': 'Plan not found'}, status=status.HTTP_404_NOT_FOUND)

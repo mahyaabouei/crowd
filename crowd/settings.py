@@ -55,6 +55,11 @@ else:
     CORS_ALLOWED_ORIGINS = [
         "https://admincrowd.isatispooya.com",
         "https://mycrowd.isatispooya.com",
+        "https://crowd.isatispooya.com",
+        "https://app.isatiscrowd.ir",
+        "https://isatiscrowd.ir",
+        "https://admin.isatiscrowd.ir",
+
     ]
 
 # Application definition
@@ -76,10 +81,10 @@ INSTALLED_APPS = [
     'plan', 
     'accounting', 
     'reports',
-    'drf_yasg',
 
 
 ]
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  
@@ -160,7 +165,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Tehran'
 
 USE_I18N = True
 
@@ -197,9 +202,38 @@ EMAIL_HOST_PASSWORD = os.getenv('MAIL_PASSWORD')
 EMAIL_USE_TLS = True  # Use TLS encryption
 EMAIL_FROM_ADDRESS = os.getenv('MAIL_FROM_ADDRESS')
 DEFAULT_FROM_EMAIL = os.getenv('MAIL_FROM_ADDRESS')
-
+EMAIL_USE_SSL = False
 
 #SMS SERVICE
 SMS_NUMBER = os.getenv('SMS_NUMBER')
 SMS_USERNAME = os.getenv('SMS_USERNAME')
 SMS_PASSWORD = os.getenv('SMS_PASSWORD')
+
+
+RATE_LIMIT = {
+    'GET': {
+        'rate': '50/m',
+        'method': ['GET'],
+        'key': 'ip',
+        'block': True
+    },
+    'POST': {
+        'rate': '30/m',
+        'method': ['POST'],
+        'key': 'ip',
+        'block': True
+    },
+    'PATCH': {
+        'rate': '20/m',
+        'method': ['PATCH'],
+        'key': 'ip',
+        'block': True
+    },
+    'DELETE': {
+        'rate': '10/m',
+        'method': ['DELETE'],
+        'key': 'ip',
+        'block': True
+    }
+}
+

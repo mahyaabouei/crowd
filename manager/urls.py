@@ -4,8 +4,8 @@ from.views import ManagerViewset , ManagerAdminViewset , ResumeViewset , ResumeA
 
 urlpatterns = [
     path('manager/<str:unique_id>/', ManagerViewset.as_view(), name='manager'),
-    # path('manager/', ManagerViewset.as_view(), name='manager-list'),
-    # path('manager/admin/', ManagerAdminViewset.as_view(), name='manager-list-admin'),
+    path('manager/', ManagerViewset.as_view(), name='manager-list'),
+    path('manager/admin/', ManagerAdminViewset.as_view(), name='manager-list-admin'),
     path('manager/admin/<str:unique_id>/', ManagerAdminViewset.as_view(), name='manager-update-admin'),
     path('resume/<str:unique_id>/', ResumeViewset.as_view(), name='resume'),
     path('resume/admin/<str:unique_id>/', ResumeAdminViewset.as_view(), name='resume-admin'),

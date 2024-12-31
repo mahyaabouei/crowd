@@ -11,57 +11,20 @@ from investor.time import get_date_from_request
 from django.http import JsonResponse
 from django_ratelimit.decorators import ratelimit   
 from django.utils.decorators import method_decorator
+from crowd import settings
 
 
 
-class ManagerViewset(APIView):
-    """
-    This view allows users to manage and retrieve managers associated with a specific cart, identified by its unique ID.
-    """
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request, unique_id):
-        """
-        Add or update managers for a specific cart.
-
-        This method authenticates the user using the Authorization header and associates a list of managers 
-        with a specific cart identified by its unique ID. If managers already exist for the cart, they are removed 
-        before adding the new list.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart with the specified unique ID does not exist, an error is returned.
-        - If manager data is invalid, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-            - managers (list, body): List of manager data to be associated with the cart.
-
-        Responses:
-            200: {
-                "message": True,
-                "data": {
-                    "id": <cart_id>,
-                    "unique_id": <unique_id>,
-                    "managers": [
-                        {
-                            "name": <manager_name>,
-                            "position": <manager_position>,
-                            ...
-                        },
-                        ...
-                    ]
-                }
-            }
-            400: {"error": "Authorization header is missing" / "Invalid data"}
-            404: {"error": "User not found" / "Cart not found"}
-        """
+# done
+class ManagerViewset(APIView) :
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
+    def post (self , request , unique_id ):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -78,43 +41,14 @@ class ManagerViewset(APIView):
         serializer = serializers.CartWithManagersSerializer(cart)
         return Response({'message': True, 'data': serializer.data}, status=status.HTTP_200_OK)
     
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request , unique_id):
-        """
-        Retrieve managers for a specific cart by unique ID.
-
-        This method authenticates the user using the Authorization header and retrieves all managers associated
-        with a cart identified by its unique ID.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart with the specified unique ID does not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "message": True,
-                "data": [
-                    {
-                        "name": <manager_name>,
-                        "position": <manager_position>,
-                        ...
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "User not found" / "Cart not found"}
-        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -125,48 +59,16 @@ class ManagerViewset(APIView):
         return Response({'message': True, 'data': serializer.data}, status=status.HTTP_200_OK)
     
 
+# done
 class ManagerAdminViewset(APIView):
-    """
-    This view allows admins to retrieve and manage (add/update) managers associated with a specific cart, identified by its unique ID.
-    """
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get(self, request, unique_id):
-        """
-        Retrieve managers for a specific cart by unique ID.
-
-        This method authenticates the admin using the Authorization header and retrieves all managers associated
-        with a cart identified by its unique ID.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart with the specified unique ID does not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "message": True,
-                "data": [
-                    {
-                        "name": <manager_name>,
-                        "position": <manager_position>,
-                        "national_code": <national_code>,
-                        ...
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "admin not found" / "Cart not found"}
-        """
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
+    def get (self,request,unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -175,47 +77,15 @@ class ManagerAdminViewset(APIView):
         managers = Manager.objects.filter(cart=cart)
         serializer = serializers.ManagerSerializer(managers, many=True)
         return Response({'message': True ,  'data': serializer.data }, status=status.HTTP_200_OK)
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post(self, request, unique_id):
-        """
-        Add or update managers for a specific cart.
-
-        This method authenticates the admin using the Authorization header and associates or updates a list of managers 
-        with a specific cart identified by its unique ID. Existing managers with matching national codes will be updated.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart with the specified unique ID does not exist, an error is returned.
-        - If manager data is invalid or missing required fields, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-            - managers (list, body): List of manager data to be associated with or updated in the cart.
-
-        Responses:
-            200: {
-                "message": True,
-                "data": [
-                    {
-                        "name": <manager_name>,
-                        "position": <manager_position>,
-                        "national_code": <national_code>,
-                        ...
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing" / "Manager national_code is missing" / "Invalid data"}
-            404: {"error": "admin not found" / "Cart not found"}
-        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
 
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
 
         if unique_id is None:
@@ -252,39 +122,16 @@ class ManagerAdminViewset(APIView):
         return Response({'message': True, 'data': serializer.data}, status=status.HTTP_200_OK)
 
 
+# done
 class ResumeViewset(APIView):
-    """
-    This view allows users to upload and retrieve resumes associated with managers of a specific cart, identified by the cart's unique ID.
-    """
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request, unique_id):
-        """
-        Upload resumes for managers of a specific cart.
-
-        This method authenticates the user using the Authorization header and allows them to upload resumes 
-        associated with managers in a cart identified by its unique ID. If a resume already exists for a 
-        manager, it is replaced with the new upload.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart with the specified unique ID or any specified manager does not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-            - files (dict, form-data): Each file should be named with the national code of the manager to associate it.
-
-        Responses:
-            200: {"success": True}
-            400: {"error": "Authorization header is missing" / "Invalid data"}
-            404: {"error": "User not found" / "Cart not found" / "Management not found"}
-        """
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
+    def post (self,request,unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
@@ -312,44 +159,14 @@ class ResumeViewset(APIView):
             serializer.save()        
         return Response({'success' : True}, status=status.HTTP_200_OK)
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request,unique_id) :
-        """
-        Retrieve resumes for managers associated with a specific cart.
-
-        This method authenticates the user using the Authorization header and retrieves all resumes associated 
-        with managers in a cart identified by its unique ID, including details such as the manager's national code,
-        name, file URL, and lock status.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart or associated managers do not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "manager": [
-                    {
-                        "national_code": <manager_national_code>,
-                        "name": <manager_name>,
-                        "lock": <lock_status>,
-                        "file": <file_url>,
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "User not found" / "Cart not found" / "Manager not found"}
-        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = models.Cart.objects.filter(user=user,unique_id=unique_id)
         if not cart.exists():
@@ -377,49 +194,16 @@ class ResumeViewset(APIView):
         return Response({'manager': resume_list}, status=status.HTTP_200_OK)
 
 
-class ResumeAdminViewset(APIView):
-    """
-    This view allows admins to retrieve and manage (add/update) resumes associated with managers for a specific cart, identified by its unique ID.
-    """
-
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get(self, request, unique_id):
-        """
-        Retrieve resumes for managers associated with a specific cart by unique ID.
-
-        This method authenticates the admin using the Authorization header and retrieves all resumes associated
-        with managers in a cart identified by its unique ID. It includes details such as the manager's national code,
-        name, file URL, and lock status.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart or associated managers do not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "manager": [
-                    {
-                        "national_code": <manager_national_code>,
-                        "name": <manager_name>,
-                        "lock": <lock_status>,
-                        "file": <file_url>,
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "admin not found" / "Cart not found" / "Manager not found"}
-        """
+# done
+class ResumeAdminViewset(APIView) :
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
+    def get(self, request,unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id)
         if not cart.exists():
@@ -445,47 +229,15 @@ class ResumeAdminViewset(APIView):
             resume_list.append({'national_code': national_code,'lock': lock,'file': file,'name':name})
 
         return Response({'manager': resume_list}, status=status.HTTP_200_OK)
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post(self, request, unique_id):
-        """
-        Add or update resumes for managers of a specific cart.
-
-        This method authenticates the admin using the Authorization header and associates or updates resumes
-        for managers in a cart identified by its unique ID. Existing resumes are replaced by new uploads where provided,
-        and lock status can be updated as specified.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart or manager specified does not exist, an error is returned.
-        - If required data or files are missing, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-            - files (dict, form-data): Each file should be named with the national code of the manager.
-            - lock statuses (dict, body): Lock statuses, formatted as "<national_code>_lock": true/false.
-
-        Responses:
-            201: {
-                "managers": [
-                    {
-                        "national_code": <manager_national_code>,
-                        "file": <file_url>,
-                        "lock": <lock_status>
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing" / "Not found management for national_code <code>"}
-            404: {"error": "admin not found" / "Cart not found"}
-        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'Admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         managers_data = []
 
@@ -539,52 +291,16 @@ class ResumeAdminViewset(APIView):
         return Response({'managers': managers_data }, status=status.HTTP_201_CREATED)
 
 
+# done
 class ShareholderViewset(APIView):
-    """
-    This view allows users to manage (add/update) and retrieve shareholders associated with a specific cart, identified by its unique ID.
-    """
-
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request, unique_id):
-        """
-        Add or update shareholders for a specific cart.
-
-        This method authenticates the user using the Authorization header and allows them to associate a list 
-        of shareholders with a specific cart identified by its unique ID. Existing shareholders are removed 
-        before adding the new list.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart with the specified unique ID does not exist, an error is returned.
-        - If shareholder data is invalid, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-            - shareholder (list, body): List of shareholder data to be associated with the cart.
-
-        Responses:
-            200: {
-                "message": True,
-                "data": [
-                    {
-                        "name": <shareholder_name>,
-                        "national_id": <shareholder_national_id>,
-                        "percentage": <ownership_percentage>,
-                        ...
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing" / "Invalid data"}
-            404: {"error": "User not found" / "Cart not found"}
-        """
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
+    def post(self, request,unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -607,44 +323,14 @@ class ShareholderViewset(APIView):
 
 
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self, request , unique_id) :
-        """
-        Retrieve shareholders for a specific cart by unique ID.
-
-        This method authenticates the user using the Authorization header and retrieves all shareholders associated
-        with a cart identified by its unique ID.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart with the specified unique ID does not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "message": True,
-                "data": [
-                    {
-                        "name": <shareholder_name>,
-                        "national_id": <shareholder_national_id>,
-                        "percentage": <ownership_percentage>,
-                        ...
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "User not found" / "Cart not found"}
-        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -655,49 +341,16 @@ class ShareholderViewset(APIView):
         return Response({'message': True, 'data': serializer.data}, status=status.HTTP_200_OK)
 
 
-class ShareholderAdminViewset(APIView):
-    """
-    This view allows admins to manage (add/update) and retrieve shareholders associated with a specific cart, identified by its unique ID.
-    """
-
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
-    def get(self, request, unique_id):
-        """
-        Retrieve shareholders for a specific cart by unique ID.
-
-        This method authenticates the admin using the Authorization header and retrieves all shareholders associated
-        with a cart identified by its unique ID.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart with the specified unique ID does not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "message": True,
-                "data": [
-                    {
-                        "name": <shareholder_name>,
-                        "national_id": <shareholder_national_id>,
-                        "percentage": <ownership_percentage>,
-                        ...
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "admin not found" / "Cart not found"}
-        """
+# done
+class ShareholderAdminViewset(APIView) :
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
+    def get (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -707,47 +360,14 @@ class ShareholderAdminViewset(APIView):
         serializer = serializers.ShareholderSerializer(shareholder, many=True)
         return Response({'message': True ,  'data': serializer.data }, status=status.HTTP_200_OK)
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post(self,request,unique_id) :
-        """
-        Add or update shareholders for a specific cart.
-
-        This method authenticates the admin using the Authorization header and allows them to associate a list 
-        of shareholders with a specific cart identified by its unique ID. Existing shareholders are removed 
-        before adding the new list.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart with the specified unique ID does not exist, an error is returned.
-        - If shareholder data is invalid, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-            - shareholder (list, body): List of shareholder data to be associated with the cart.
-
-        Responses:
-            200: {
-                "message": True,
-                "data": [
-                    {
-                        "name": <shareholder_name>,
-                        "national_id": <shareholder_national_id>,
-                        "percentage": <ownership_percentage>,
-                        ...
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing" / "Invalid data"}
-            404: {"error": "admin not found" / "Cart not found"}
-        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         if unique_id is None:
             return Response({'error': 'Manager ID is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -771,47 +391,10 @@ class ShareholderAdminViewset(APIView):
         return Response({'message': True, 'data': all_serialized}, status=status.HTTP_200_OK)
 
 
-class ValidationViewset(APIView):
-    """
-    This view allows users to upload and retrieve validation files associated with managers for a specific cart, identified by the cart's unique ID.
-    """
-
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+# done
+class ValidationViewset (APIView) :
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post(self, request, unique_id):
-        """
-        Upload validation files for managers of a specific cart.
-
-        This method authenticates the user using the Authorization header and allows them to upload validation files 
-        associated with managers in a cart identified by its unique ID. Existing validation files are replaced.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart or any specified manager does not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-            - files (dict, form-data): Each file should be named with the national code of the manager or "1" for the company.
-            - dates (dict, body): Dates in milliseconds associated with each file, formatted as "<national_code>_date".
-
-        Responses:
-            200: {
-                "data": {
-                    "managers": [
-                        {
-                            "national_code": <manager_national_code>,
-                            "name": <manager_name>,
-                            "file_manager": <file_url>,
-                            "date": <validation_date>
-                        },
-                        ...
-                    ]
-                }
-            }
-            400: {"error": "Authorization header is missing" / "Invalid data"}
-            404: {"error": "User not found" / "Cart not found" / "Manager with national code <code> not found for this cart"}
-            500: {"error": "<Exception message>"}
-        """
         try:
             Authorization = request.headers.get('Authorization')
             if not Authorization:
@@ -819,7 +402,7 @@ class ValidationViewset(APIView):
             
             user = fun.decryptionUser(Authorization)
             if not user:
-                return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
             
             user = user.first()
             cart = models.Cart.objects.filter(unique_id=unique_id).first()
@@ -894,40 +477,8 @@ class ValidationViewset(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get(self, request, unique_id):
-        """
-        Retrieve validation files for managers associated with a specific cart.
-
-        This method authenticates the user using the Authorization header and retrieves all validation files 
-        associated with managers in a cart identified by its unique ID, including file URLs and validation dates.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart or associated managers do not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "data": {
-                    "managers": [
-                        {
-                            "national_code": <manager_national_code>,
-                            "name": <manager_name>,
-                            "file_manager": <file_url>,
-                            "date": <validation_date>
-                        },
-                        ...
-                    ]
-                }
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "User not found" / "Cart not found" / "No managers found for this cart"}
-            500: {"error": "<Exception message>"}
-        """
         try:
             Authorization = request.headers.get('Authorization')
             if not Authorization:
@@ -935,7 +486,7 @@ class ValidationViewset(APIView):
             
             user = fun.decryptionUser(Authorization)
             if not user:
-                return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
             
             user = user.first()
             cart = models.Cart.objects.filter(unique_id=unique_id).first()
@@ -950,14 +501,12 @@ class ValidationViewset(APIView):
             for manager in managers:
                 validation = Validation.objects.filter(manager=manager.national_code, cart=cart).first()
                 
-                print(validation)
 
                 if validation:
                     date = validation.date
                 else:
                     date = datetime.datetime.now()
 
-                print(date)
                 
 
                 manager_list.append({
@@ -990,61 +539,21 @@ class ValidationViewset(APIView):
             return Response({'data': response_data}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f"An error occurred: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class ValidationAdminViewset(APIView):
-    """
-    This view allows admins to upload and retrieve validation files with lock status for managers and the company associated with a specific cart, identified by the cart's unique ID.
-    """
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request, unique_id):
-        """
-        Upload or update validation files for managers of a specific cart, with lock status.
-
-        This method authenticates the admin using the Authorization header and allows them to upload validation files 
-        associated with managers and the company in a cart identified by its unique ID. Existing validation files are replaced.
-        Lock statuses can also be set for each manager.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart or any specified manager does not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-            - files (dict, form-data): Each file should be named with the national code of the manager or "1" for the company.
-            - dates (dict, body): Dates in milliseconds associated with each file, formatted as "<national_code>_date".
-            - lock statuses (dict, body): Lock statuses, formatted as "lock_<national_code>": true/false.
-
-        Responses:
-            200: {
-                "data": {
-                    "managers": [
-                        {
-                            "national_code": <manager_national_code>,
-                            "name": <manager_name>,
-                            "file_manager": <file_url>,
-                            "date": <validation_date>,
-                            "lock": <lock_status>
-                        },
-                        ...
-                    ]
-                }
-            }
-            400: {"error": "Authorization header is missing" / "File validation is missing"}
-            404: {"error": "admin not found" / "Cart not found" / "Manager with national code <code> not found for this cart"}
-            500: {"error": "<Exception message>"}
-        """
+# done
+class ValidationAdminViewset (APIView) :
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
+    def post (self, request, unique_id) :
         try :
             Authorization = request.headers.get('Authorization')
             if not Authorization:
                 return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
             admin = fun.decryptionadmin(Authorization)
             if not admin:
-                return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
             admin = admin.first()
             cart = models.Cart.objects.filter(unique_id=unique_id).first()
             if not cart:
@@ -1143,53 +652,20 @@ class ValidationAdminViewset(APIView):
             return Response({'data': response_data}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f"An error occurred: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+
+
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self, request, unique_id) :
-        """
-        Retrieve validation files for managers associated with a specific cart, including lock status.
-
-        This method authenticates the admin using the Authorization header and retrieves all validation files 
-        associated with managers in a cart identified by its unique ID, including file URLs, validation dates, 
-        and lock statuses.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart or associated managers do not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "data": {
-                    "managers": [
-                        {
-                            "national_code": <manager_national_code>,
-                            "name": <manager_name>,
-                            "file_manager": <file_url>,
-                            "date": <validation_date>,
-                            "lock": <lock_status>
-                        },
-                        ...
-                    ]
-                }
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "admin not found" / "Cart not found" / "No managers found for this cart"}
-            500: {"error": "<Exception message>"}
-        """
         try :
             Authorization = request.headers.get('Authorization')
             if not Authorization:
                 return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
             admin = fun.decryptionadmin(Authorization)
             if not admin:
-                return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
             admin = admin.first()
             cart = models.Cart.objects.filter(unique_id=unique_id).first()
             if not cart:
@@ -1237,54 +713,19 @@ class ValidationAdminViewset(APIView):
             return Response({'data': response_data}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f"An error occurred: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class HistoryViewset(APIView):
-    """
-    This view allows users to upload and retrieve historical records (files and dates) associated with managers for a specific cart, identified by the cart's unique ID.
-    """
-
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
-    def post(self, request, unique_id):
-
-        """
-        Retrieve historical records for managers associated with a specific cart.
-
-        This method authenticates the user using the Authorization header and retrieves all historical records 
-        associated with managers in a cart identified by its unique ID, including file URLs, dates, and lock status.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart or associated managers do not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "manager": [
-                    {
-                        "national_code": <manager_national_code>,
-                        "name": <manager_name>,
-                        "file": <file_url>,
-                        "date": <history_date>,
-                        "lock": <lock_status>
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "User not found" / "Cart not found" / "Manager not found"}
-        """
+# done
+class HistoryViewset (APIView) :
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
+    def post (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -1306,7 +747,6 @@ class HistoryViewset(APIView):
                 date = int(date_manager[timestamp_key]) / 1000  
                 date = datetime.datetime.fromtimestamp(date)     
 
-                print(f"Date for manager {manager.national_code}: {date}")  
             except (KeyError, ValueError) as e:
                 return Response({'error': f'Invalid date format for manager {manager.national_code}'}, status=status.HTTP_400_BAD_REQUEST)
             
@@ -1326,38 +766,8 @@ class HistoryViewset(APIView):
 
 
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self, request, unique_id) :
-        """
-        Retrieve historical records for managers associated with a specific cart.
-
-        This method authenticates the user using the Authorization header and retrieves all historical records 
-        associated with managers in a cart identified by its unique ID, including file URLs, dates, and lock status.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the user's authorization token is invalid or the user is not found, an error is returned.
-        - If the cart or associated managers do not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): User's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "manager": [
-                    {
-                        "national_code": <manager_national_code>,
-                        "name": <manager_name>,
-                        "file": <file_url>,
-                        "date": <history_date>,
-                        "lock": <lock_status>
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "User not found" / "Cart not found" / "Manager not found"}
-        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response ({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1404,55 +814,17 @@ class HistoryViewset(APIView):
         return Response({'manager': manager_list}, status=status.HTTP_200_OK)
 
 
-class HistoryAdminViewset(APIView):
-    """
-    This view allows admins to upload and retrieve historical records (files and dates) with lock status associated with managers for a specific cart, identified by the cart's unique ID.
-    """
-
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+# done
+class HistoryAdminViewset (APIView) :
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post(self, request, unique_id):
-        """
-        Upload or update historical records for managers of a specific cart, with lock status.
-
-        This method authenticates the admin using the Authorization header and allows them to upload historical files 
-        associated with managers in a cart identified by its unique ID. Existing historical records are replaced with the new uploads.
-        Lock statuses and dates can also be set for each manager.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart or any specified manager does not exist, an error is returned.
-        - If date data for any manager is missing or in an invalid format, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-            - files (dict, form-data): Each file should be named with the national code of the manager.
-            - dates (dict, body): Dates in milliseconds associated with each file, formatted as "<national_code>_date".
-            - lock statuses (dict, body): Lock statuses, formatted as "lock_<national_code>": true/false.
-
-        Responses:
-            200: {
-                "managers": [
-                    {
-                        "national_code": <manager_national_code>,
-                        "name": <manager_name>,
-                        "file": <file_url>,
-                        "date": <history_date>,
-                        "lock": <lock_status>
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing" / "Date for manager with national code <code> is missing" / "Invalid date format for manager <code>" / "Lock status for manager <code> is missing"}
-            404: {"error": "admin not found" / "Cart not found" / "Not found management for national_code <code>"}
-        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
@@ -1477,7 +849,6 @@ class HistoryAdminViewset(APIView):
                     
                     history = History(file=file, manager=manager, lock=lock, cart=cart, date=date)
                     history.save()
-                print(history)
                 
 
                 
@@ -1511,44 +882,14 @@ class HistoryAdminViewset(APIView):
         return Response({'managers': serializer.data}, status=status.HTTP_200_OK)
       
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self, request, unique_id) :
-        """
-        Retrieve historical records for managers associated with a specific cart, including lock status.
-
-        This method authenticates the admin using the Authorization header and retrieves all historical records 
-        associated with managers in a cart identified by its unique ID, including file URLs, dates, and lock statuses.
-
-        - If the Authorization header is missing, an error is returned.
-        - If the admin's authorization token is invalid or the admin is not found, an error is returned.
-        - If the cart or associated managers do not exist, an error is returned.
-
-        Parameters:
-            - Authorization (str, header): Admin's authorization token.
-            - unique_id (str, path): Unique identifier for the cart.
-
-        Responses:
-            200: {
-                "manager": [
-                    {
-                        "national_code": <manager_national_code>,
-                        "name": <manager_name>,
-                        "file": <file_url>,
-                        "date": <history_date>,
-                        "lock": <lock_status>
-                    },
-                    ...
-                ]
-            }
-            400: {"error": "Authorization header is missing"}
-            404: {"error": "admin not found" / "Cart not found" / "Manager not found"}
-        """
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:

@@ -26,14 +26,14 @@ from django.utils.decorators import method_decorator
 # انتخاب مدیران شرکت برای حق امضا توسط ادمین
 # done
 class SignatureViewset (APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self,request,unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -51,14 +51,14 @@ class SignatureViewset (APIView):
 # فعال کردن وضعیت حق امضای مدیران مشتری توسط ادمین
 # done
 class SetSignatureViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self,request,unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         data = request.data.copy()
@@ -72,14 +72,14 @@ class SetSignatureViewset(APIView) :
         return Response ({'success': True}, status=status.HTTP_200_OK)
     
 # لیست مدیران مشتری که حق امضای فعال دارند براساس کارت منتخب 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get(self,request,unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         manager = models.Manager.objects.filter(cart=cart)
@@ -98,18 +98,17 @@ class SetSignatureViewset(APIView) :
         return Response ({'managers informations' :manager_info }, status=status.HTTP_200_OK)
 
 
-
 # وارد کردن اطلاعات قرارداد عاملیت توسط ادمین
 # done
 class SetCartAdminViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self,request,unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
 
@@ -130,14 +129,14 @@ class SetCartAdminViewset(APIView) :
         serializer = serializers.CartSerializer(cart)
         
         return Response ({'success': True , 'cart' : serializer.data}, status=status.HTTP_200_OK)
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request,unique_id) : 
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).values('otc_fee', 'publication_fee', 'dervice_fee', 'design_cost',
             'percentage_total_amount', 'payback_period', 'swimming_percentage','lock_swimming_percentage','lock_partnership_interest',
@@ -148,19 +147,17 @@ class SetCartAdminViewset(APIView) :
         return Response ({'error': 'not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
-
-
 # وارد کردن اطلاعات قرارداد عاملیت توسط مشتری
 # done
 class SetCartUserViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self,request,unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
 
@@ -182,16 +179,15 @@ class SetCartUserViewset(APIView) :
         return Response ({'success': True , 'cart' : serializer.data}, status=status.HTTP_200_OK)
 
 
-
 class PdfViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post(self, request,unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:

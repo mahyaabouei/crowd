@@ -20,4 +20,3 @@ python-dotenv
 transaction
 bleach
 django-csp
-drf_yasg

@@ -24,7 +24,7 @@ def validate_file_type(file):
 
 
 class Wallet (models.Model):
-    remaining = models.IntegerField(null=True , blank=True) #مانده
+    remaining = models.BigIntegerField(null=True , blank=True) #مانده
     status = models.BooleanField(default=False)
     user = models.ForeignKey(User , on_delete=models.CASCADE )
     def __str__(self):
@@ -39,8 +39,8 @@ class Transaction(models.Model):
         ('2', 'فیش'),
     ]
     method = models.CharField(max_length=20, choices=method_option, null=True, blank=True)
-    credit_amount = models.IntegerField(null=True, blank=True)  # مقدار بستانکاری
-    debt_amount = models.IntegerField(null=True, blank=True)  # مقدار بدهکاری
+    credit_amount = models.BigIntegerField(null=True, blank=True)  # مقدار بستانکاری
+    debt_amount = models.BigIntegerField(null=True, blank=True)  # مقدار بدهکاری
     status = models.BooleanField(default=False)
     description_transaction = models.CharField(max_length=250, null=True, blank=True)  # شرح تراکنش
     image_receipt = models.FileField(upload_to='static/', null=True, blank=True,validators=[validate_file_type])  # تصویر فیش

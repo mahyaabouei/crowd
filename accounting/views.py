@@ -10,19 +10,19 @@ from django.http import HttpResponse, HttpResponseNotAllowed
 from django.http import JsonResponse
 from django_ratelimit.decorators import ratelimit   
 from django.utils.decorators import method_decorator
-
+from crowd import settings
 
 
 # done
 class WalletAdminViewset(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request):
         Authorization = request.headers.get('Authorization')     
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
 
         wallet = Wallet.objects.all()
@@ -36,14 +36,14 @@ class WalletAdminViewset(APIView):
 
 # done
 class WalletAdmin2Viewset(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['PATCH']), name='patch')
     def patch (self,request,id) :
         Authorization = request.headers.get('Authorization')     
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
 
         wallet =  Wallet.objects.filter(id=id).first()
@@ -55,14 +55,15 @@ class WalletAdmin2Viewset(APIView):
             serializer.save()
             return Response({'message': 'wallet updated successfully', 'wallet': serializer.data}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request,id) :
         Authorization = request.headers.get('Authorization')     
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
 
         wallet = Wallet.objects.filter(id=id).first()
@@ -76,14 +77,14 @@ class WalletAdmin2Viewset(APIView):
 
 # done
 class WalletViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()   
         wallet = Wallet.objects.filter(user=user).first()
         serializer = serializers.WalletSerializer(wallet)
@@ -94,14 +95,14 @@ class WalletViewset(APIView) :
 
 # done
 class TransactionAdminViewset(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get(self,request) :
         Authorization = request.headers.get('Authorization')     
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
 
         transaction = Transaction.objects.all()
@@ -115,14 +116,14 @@ class TransactionAdminViewset(APIView):
 
 # done
 class TransactionAdmin2Viewset(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get(self,request,id) :
         Authorization = request.headers.get('Authorization')     
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
 
         transaction = Transaction.objects.filter(id=id).first()
@@ -134,14 +135,14 @@ class TransactionAdmin2Viewset(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  
 
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(key='ip', rate='20/m', method='GET', block=True))
     def patch (self,request,id) :
         Authorization = request.headers.get('Authorization')     
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
 
         transaction =  Transaction.objects.filter(id=id).first()
@@ -183,14 +184,14 @@ class TransactionAdmin2Viewset(APIView):
    
 # done
 class TransactionViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         wallet = Wallet.objects.filter(user=user).first()
         transaction = Transaction.objects.filter(wallet=wallet)
@@ -199,14 +200,14 @@ class TransactionViewset(APIView) :
             return Response({'transaction': serializer.data}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self, request) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         wallet = Wallet.objects.filter(user=user).first()
         if not wallet:
@@ -232,14 +233,14 @@ class TransactionViewset(APIView) :
 
 # done
 class Transaction2Viewset(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request,id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()  
         wallet = Wallet.objects.filter(user=user).first()
         transaction = Transaction.objects.filter(id=id , wallet=wallet).first()

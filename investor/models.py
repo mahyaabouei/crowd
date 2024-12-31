@@ -151,7 +151,7 @@ class Cart (models.Model) :
     guarantee = models.CharField(max_length=150, null=True , blank=True) # ضمانت نامه
     lock_guarantee = models.BooleanField(default=False)
     
-    amount_of_registered_shares = models.IntegerField( null=True , blank=True) # تعداد سهام ثبتی 
+    amount_of_registered_shares = models.BigIntegerField( null=True , blank=True) # تعداد سهام ثبتی 
     lock_amount_of_registered_shares = models.BooleanField(default=False) 
     
     exchange_code =  models.CharField(max_length=150, null=True , blank=True) #کد بورسی

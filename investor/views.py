@@ -12,7 +12,7 @@ from django.http import JsonResponse
 from django_ratelimit.decorators import ratelimit   
 from django.utils.decorators import method_decorator
 import string
-
+from crowd import settings
 
 # ساخت ایدی کارت
 def generate_unique_id(length=20):
@@ -20,9 +20,10 @@ def generate_unique_id(length=20):
     unique_id = ''.join(random.choices(characters, k=length))
     return unique_id
 
+
 # done
 class RequestViewset(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self,request):
         Authorization = request.headers.get('Authorization')
         
@@ -32,7 +33,7 @@ class RequestViewset(APIView):
         user = fun.decryptionUser(Authorization)
 
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
 
         
@@ -69,7 +70,6 @@ class RequestViewset(APIView):
                     return Response({'error': 'Invalid timestamp for year_of_establishment'}, status=status.HTTP_400_BAD_REQUEST)
         serializer = serializers.CartSerializer(data=data)
         if not serializer.is_valid():
-            print(serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         if serializer.is_valid():
@@ -100,14 +100,14 @@ class RequestViewset(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request) :
         Authorization = request.headers.get('Authorization')    
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()   
         cart = Cart.objects.filter(user=user)
         cart  =cart.order_by('-id')
@@ -117,7 +117,7 @@ class RequestViewset(APIView):
 
 # done
 class DetailCartViewset(APIView):    
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request,unique_id) :
         Authorization = request.headers.get('Authorization')
         
@@ -127,7 +127,7 @@ class DetailCartViewset(APIView):
         user = fun.decryptionUser(Authorization)
 
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()   
         cart = Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -140,7 +140,7 @@ class DetailCartViewset(APIView):
         return Response({'message': True, 'cart': cart_serializer}, status=status.HTTP_200_OK)
     
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['PATCH']), name='patch')
     def patch(self,request, unique_id) :
         Authorization = request.headers.get('Authorization')
         
@@ -150,7 +150,7 @@ class DetailCartViewset(APIView):
         user = fun.decryptionUser(Authorization)
 
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()  
         cart = Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -195,13 +195,11 @@ class DetailCartViewset(APIView):
             cart_serializer.save()
             return Response({'message': 'Cart updated successfully', 'cart': cart_serializer.data}, status=status.HTTP_200_OK)
         return Response(cart_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-    
+  
 
 # done
 class CartAdmin(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get(self , request) :
         Authorization = request.headers.get('Authorization')     
 
@@ -210,14 +208,14 @@ class CartAdmin(APIView) :
         
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         
         admin = admin.first()
         cart = Cart.objects.all().order_by('-id')
         cart_serializer = serializers.CartSerializer(cart , many = True)
         return Response ({'message' : True ,  'cart': cart_serializer.data} ,  status=status.HTTP_200_OK )
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['PATCH']), name='patch')
     def patch (self , request , unique_id) :
         Authorization = request.headers.get('Authorization')    
 
@@ -226,7 +224,7 @@ class CartAdmin(APIView) :
         
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         
         admin = admin.first()
 
@@ -333,7 +331,7 @@ class CartAdmin(APIView) :
     
         return Response(cart_serializer.data, status=status.HTTP_200_OK)
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='DELETE', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['DELETE']), name='delete')
     def delete(self , request , unique_id):
         Authorization = request.headers.get('Authorization')    
 
@@ -342,7 +340,7 @@ class CartAdmin(APIView) :
         
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         
         admin = admin.first()
 
@@ -352,9 +350,10 @@ class CartAdmin(APIView) :
         cart.delete()
         return Response({'message': 'Cart deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
+
 # done
 class DetailCartAdminViewset(APIView):    
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self,request,unique_id) :
         Authorization = request.headers.get('Authorization')
         
@@ -364,7 +363,7 @@ class DetailCartAdminViewset(APIView):
         admin = fun.decryptionadmin(Authorization)
 
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()   
         cart = Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -375,14 +374,14 @@ class DetailCartAdminViewset(APIView):
     
 # done
 class MessageAdminViewSet(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post(self,request,unique_id):
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'Admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -390,7 +389,6 @@ class MessageAdminViewSet(APIView):
         
         serializer = serializers.MessageSerializer(data={**request.data, 'cart': cart.id})
         if not serializer.is_valid():
-            print(serializer.errors)  
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         if serializer.is_valid():
             serializer.save()  
@@ -401,14 +399,14 @@ class MessageAdminViewSet(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  
     
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get(self , request,unique_id) :
         Authorization = request.headers.get('Authorization')     
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = Cart.objects.filter(unique_id=unique_id).first()
         message = Message.objects.filter(cart=cart).order_by('-id').first()
@@ -418,14 +416,14 @@ class MessageAdminViewSet(APIView):
 
 # done
 class MessageUserViewSet(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get(self , request,unique_id) :
         Authorization = request.headers.get('Authorization')     
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = Cart.objects.filter(unique_id=unique_id).first()
         message = Message.objects.filter(cart=cart).order_by('-id').first()
@@ -437,14 +435,14 @@ class MessageUserViewSet(APIView):
 
 # done
 class AddInformationViewset (APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         user = fun.decryptionUser(Authorization)
         if not user:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'user not found'}, status=status.HTTP_401_UNAUTHORIZED)
         user = user.first()
         cart = Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -527,7 +525,7 @@ class AddInformationViewset (APIView) :
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
@@ -550,14 +548,14 @@ class AddInformationViewset (APIView) :
 
 # done
 class AddInfromationAdminViewset (APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -605,14 +603,14 @@ class AddInfromationAdminViewset (APIView) :
         addinformation_serializer = serializers.AddInformationSerializer(addinformation)
         return Response(addinformation_serializer.data, status=status.HTTP_201_CREATED)
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -628,14 +626,14 @@ class AddInfromationAdminViewset (APIView) :
 
 # done
 class FinishCartViewset(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='PATCH', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['PATCH']), name='patch')
     def patch (self,request,unique_id) : 
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -654,14 +652,14 @@ class FinishCartViewset(APIView):
 # done
 # اپدیت کمیته ریسک
 class RiskCommitteeViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self, request,unique_id) : 
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -674,14 +672,14 @@ class RiskCommitteeViewset(APIView) :
             serializer.save()  
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response ({'error': 'Cart not found'}, status.HTTP_400_BAD_REQUEST)
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -693,14 +691,14 @@ class RiskCommitteeViewset(APIView) :
 # done
 # اپدیت کمیته ارزیابی
 class EvaluationCommitteeViewset(APIView) :
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['POST']), name='post')
     def post (self, request,unique_id) : 
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:
@@ -716,14 +714,14 @@ class EvaluationCommitteeViewset(APIView) :
     
 
 
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
+    @method_decorator(ratelimit(**settings.RATE_LIMIT['GET']), name='get')
     def get (self, request, unique_id) :
         Authorization = request.headers.get('Authorization')
         if not Authorization:
             return Response({'error': 'Authorization header is missing'}, status=status.HTTP_400_BAD_REQUEST)
         admin = fun.decryptionadmin(Authorization)
         if not admin:
-            return Response({'error': 'admin not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'admin not found'}, status=status.HTTP_401_UNAUTHORIZED)
         admin = admin.first()
         cart = models.Cart.objects.filter(unique_id=unique_id).first()
         if not cart:

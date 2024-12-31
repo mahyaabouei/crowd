@@ -36,9 +36,10 @@ class User(models.Model):
     status = models.CharField(max_length=150 , null=True, blank=True)
     type = models.CharField(max_length=200)
     uniqueIdentifier = models.CharField(max_length=150 , unique=True)
-    referal = models.CharField(max_length=14,  null=True, blank=True , unique=True) # معرف : کدملی معرف 
+    referal = models.CharField(max_length=20,  null=True, blank=True , unique=False)
     attempts = models.IntegerField(default=0)
     lock_until = models.DateTimeField(null=True, blank=True)
+    create_at = models.DateTimeField(default=timezone.now)
     def lock(self):
         self.lock_until = timezone.now() + timedelta(minutes=5)     
         self.save()
@@ -49,20 +50,22 @@ class User(models.Model):
 
     def __str__(self):
         uniqueIdentifier = self.uniqueIdentifier if self.uniqueIdentifier else "uniqueIdentifier"
-        return f'{uniqueIdentifier}'
+        return f'{uniqueIdentifier} {self.mobile}'
     
 
 class accounts (models.Model) :
     user = models.ForeignKey(User,on_delete=models.CASCADE)
     accountNumber = models.CharField(max_length=200)
-    bank = models.CharField( max_length=200)
-    branchCity = models.CharField( max_length=200)
-    branchCode = models.CharField(max_length=20)
-    branchName = models.CharField(max_length=200)
-    isDefault = models.CharField( max_length=200)
-    modifiedDate = models.CharField( max_length=200)
-    type = models.CharField(max_length= 200)
+    bank = models.CharField(max_length=200)
+    branchCity = models.CharField( max_length=200, null=True, blank=True)
+    branchCode = models.CharField(max_length=20, null=True, blank=True)
+    branchName = models.CharField(max_length=200, null=True, blank=True)
+    isDefault = models.CharField( max_length=200, null=True, blank=True)
+    modifiedDate = models.CharField( max_length=200, null=True, blank=True)
+    type = models.CharField(max_length= 200, null=True, blank=True)
     sheba = models.CharField(max_length= 200)
+    def __str__(self):
+        return f'{self.accountNumber} {self.bank} {self.branchName}'
 
 
 class LegalPerson (models.Model):
@@ -78,6 +81,8 @@ class LegalPerson (models.Model):
     legalPersonTypeCategory = models.CharField( max_length=150 , null=True , blank= True)
     registerPlace = models.CharField( max_length=150 , null=True , blank= True)
     registerNumber = models.CharField( max_length=150 , null=True , blank= True)
+    def __str__(self):
+        return f'{self.companyName} {self.economicCode} {self.registerNumber}'
 
 
 class legalPersonShareholders (models.Model):
@@ -89,8 +94,9 @@ class legalPersonShareholders (models.Model):
     lastName = models.CharField( max_length=50 , null=True , blank= True)
     firstName = models.CharField( max_length=50 , null=True , blank= True)
     address = models.TextField( max_length=150 , null=True , blank= True)
+    def __str__(self):
+        return f'{self.firstName} {self.lastName} {self.uniqueIdentifier}'
     
-
 
 class legalPersonStakeholders (models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -102,6 +108,8 @@ class legalPersonStakeholders (models.Model):
     isOwnerSignature = models.CharField( max_length=150 , null=True , blank= True)
     firstName = models.CharField( max_length=150 , null=True , blank= True)
     endAt = models.CharField( max_length=150 , null=True , blank= True)
+    def __str__(self):
+        return f'{self.firstName} {self.lastName} {self.uniqueIdentifier}'
 
 
 class addresses (models.Model):
@@ -125,6 +133,8 @@ class addresses (models.Model):
     section =models.CharField(max_length=1000 ,  blank=True , null= True)
     tel =  models.CharField(max_length=1000 ,  blank=True , null= True)
     website = models.CharField(max_length=1000 ,  blank=True , null= True)
+    def __str__(self):
+        return f'{self.city} {self.country} {self.email}'
 
 
 class financialInfo (models.Model) :
@@ -141,6 +151,8 @@ class financialInfo (models.Model) :
     sExchangeTransaction = models.CharField(max_length=1000 ,  blank=True , null= True)
     tradingKnowledgeLevel = models.CharField(max_length=1000 ,  blank=True , null= True)
     transactionLevel = models.CharField(max_length=1000 ,  blank=True , null= True)
+    def __str__(self):
+        return f'{self.companyPurpose} {self.financialBrokers} {self.referenceRateCompany}'
 
 
 class jobInfo (models.Model) :
@@ -158,6 +170,8 @@ class jobInfo (models.Model) :
     job = models.CharField(max_length=1000 ,  blank=True , null= True)
     jobDescription = models.CharField(max_length=1000 ,  blank=True , null= True)
     position = models.CharField(max_length=1000 ,  blank=True , null= True)
+    def __str__(self):
+        return f'{self.companyName} {self.job} {self.position}' 
 
 
 class privatePerson (models.Model) :
@@ -173,7 +187,9 @@ class privatePerson (models.Model) :
     seriShChar = models.CharField(max_length=200, null=True, blank=True)
     serial = models.CharField(max_length=200)
     shNumber = models.CharField(max_length=200)
-    signatureFile = models.FileField(upload_to='signatures/', null=True, blank=True,validators=[validate_file_type]) 
+    signatureFile = models.FileField(upload_to='signatures/', null=True, blank=True,validators=[validate_file_type])
+    def __str__(self):
+        return f'{self.firstName} {self.lastName}'
 
 
 class tradingCodes (models.Model) :
@@ -183,6 +199,8 @@ class tradingCodes (models.Model) :
     secondPart  = models.CharField(max_length=200 , null=True, blank=True)
     thirdPart = models.CharField(max_length=200, null=True, blank=True)
     type = models.CharField(max_length=200, null=True, blank=True)
+    def __str__(self):
+        return f'{self.code}'
 
 
 class Otp(models.Model):
@@ -215,9 +233,10 @@ class Admin(models.Model):
 
 
 class Reagent(models.Model):
-    reference = models.ForeignKey(User,to_field='referal', on_delete=models.CASCADE , related_name='reagent_references') # معرفی کننده
-    referrer = models.ForeignKey(User, on_delete=models.CASCADE , related_name='reagent_referrers') # معرفی شده
+    reference = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reagent_references') # معرفی کننده
+    referrer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reagent_referrers') # معرفی شده
     date_created = models.DateTimeField(auto_now_add=True)
+    
     def __str__(self):
         return f'Reagent between {self.referrer} and {self.reference}'
     
@@ -226,3 +245,15 @@ class Captcha(models.Model):
     encrypted_response = models.TextField(max_length=6)
     enabled = models.BooleanField(default=True)
 
+
+
+
+# class AgentUser (models.Model): 
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     description = models.TextField(null=True, blank=True)
+#     expiration_date = models.CharField(max_length=150, null=True, blank=True)
+#     first_name = models.CharField(max_length=150, null=True, blank=True)
+#     is_confirmed = models.BooleanField( default= True)
+#     last_name = models.CharField(max_length=150, null=True, blank=True)
+#     type = models.CharField(max_length=150, null=True, blank=True)
+#     father_uniqueIdentifier = models.CharField(max_length=150, null=True, blank=True)

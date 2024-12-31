@@ -3,6 +3,8 @@ from dataclasses import dataclass
 import os
 from django.conf import settings
 from django.core.files.base import ContentFile
+from typing import Optional, Tuple, Union
+
 @dataclass
 class ProjectFinancingProvider:
     """
@@ -33,6 +35,17 @@ class ProjectFinancingProvider:
     mobileNumber: str
     bankTrackingNumber: str
 
+@dataclass
+class SuccessResponse:
+    TraceCode: str
+    ProvidedFinancePrice: int
+    Message: str
+
+@dataclass
+class ErrorResponse:
+    ErrorMessage: str
+    ErrorNo: int
+
 class CrowdfundingAPI:
     """
     این کلاس برای کار با APIهای مختلف سامانه تامین مالی جمعی فرابورس طراحی شده است.
@@ -54,17 +67,19 @@ class CrowdfundingAPI:
         """
         pass
 
-    def register_financing(self, financing_data: ProjectFinancingProvider):
+    def register_financing(self, financing_data: ProjectFinancingProvider) -> Tuple[Union[SuccessResponse, ErrorResponse], int]:
         """
         ثبت اطلاعات مشارکت کنندگان در تامین مالی جمعی طرح.
         
-        این متد اطلاعات مالی یک مشارکت کننده را برای یک طرح خاص به سامانه ارسال می‌کند.
-        
         پارامترها:
-            financing_data: شیءی از کلاس ProjectFinancingProvider که شامل تمامی اطلاعات مورد نیاز برای ثبت تامین مالی است.
+            financing_data: شیءی از کلاس ProjectFinancingProvider
             
         خروجی: 
-            پاسخ JSON شامل کد پیگیری یا پیام خطا در صورت عدم موفقیت.
+            tuple: (پاسخ ساختاریافته، کد وضعیت HTTP)
+            - status code: 
+                201: موفق (SuccessResponse)
+                400: خطای درخواست (ErrorResponse)
+                500: خطای سرور (ErrorResponse)
         """
         url = f"{self.BASE_URL}/projects/projectfinancingprovider"
         body = {
@@ -81,8 +96,33 @@ class CrowdfundingAPI:
             "MobileNumber": financing_data.mobileNumber,
             "BankTrackingNumber": financing_data.bankTrackingNumber
         }
-        response = requests.post(url, json=body)
-        return response.json()
+        
+        try:
+            response = requests.post(url, json=body, timeout=(5, 30))
+            data = response.json()
+            
+            if response.status_code == 201:
+                return SuccessResponse(
+                    TraceCode=data['TraceCode'],
+                    ProvidedFinancePrice=data['ProvidedFinancePrice'],
+                    Message=data['Message']
+                ), 201
+            else:
+                return ErrorResponse(
+                    ErrorMessage=data['ErrorMessage'],
+                    ErrorNo=data['ErrorNo']
+                ), response.status_code
+            
+        except requests.Timeout:
+            return ErrorResponse(
+                ErrorMessage="درخواست با تایم‌اوت مواجه شد",
+                ErrorNo=500
+            ), 500
+        except requests.RequestException as e:
+            return ErrorResponse(
+                ErrorMessage=str(e),
+                ErrorNo=500
+            ), 500
 
     def get_company_projects(self):
         """
@@ -142,22 +182,3 @@ class CrowdfundingAPI:
         response = requests.post(url, json=body)
         return response
 
-
-
-# مثال استفاده:
-# api = CrowdfundingAPI()
-# project_data = ProjectFinancingProvider(
-#     projectID="3403cbaa-911b-44c3-af6f-de3c97367627",
-#     nationalID=1234567890,
-#     isLegal=False,
-#     firstName="Ali",
-#     lastNameOrCompanyName="Seraj",
-#     providedFinancePrice=10000,
-#     bourseCode="01234SARA",
-#     paymentDate="2022-03-06T07:37:15.381Z",
-#     shebaBankAccountNumber="IR0696000000010324200001",
-#     mobileNumber="09121234567",
-#     bankTrackingNumber="3467899953"
-# )
-# response = api.register_financing(project_data)
-# print(response)

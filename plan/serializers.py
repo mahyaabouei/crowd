@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from . import models
-from authentication.models import User , privatePerson
+from authentication.models import User , privatePerson , Admin
 
 
 class PlanSerializer(serializers.ModelSerializer):
@@ -93,6 +93,28 @@ class PlansSerializer(serializers.ModelSerializer):
         model = models.Plans
         fields = '__all__'
 class PaymentGatewaySerializer(serializers.ModelSerializer):
+    admin = serializers.PrimaryKeyRelatedField(queryset=Admin.objects.all())
+    admin_info = serializers.SerializerMethodField()  
     class Meta:
         model = models.PaymentGateway
         fields = '__all__'
+    
+
+    def get_admin_info(self, obj):
+        if obj.admin:
+            admin = obj.admin
+            return {
+            'id': admin.id,
+            'first_name': admin.firstName or "",
+            'last_name': admin.lastName or "",
+            'mobile': admin.mobile or "",
+            'uniqueIdentifier': admin.uniqueIdentifier or "",
+            'email': admin.email or "",
+        }
+        return {}
+
+class ComplaintSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Complaint
+        fields = '__all__'
+

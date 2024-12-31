@@ -23,7 +23,7 @@ class PasargadPaymentGateway:
         duplicate_number = False
         while not duplicate_number:
             
-            invoice = str(random.randint(100, 999))+str(date.year)+str(date.month)+str(date.day)+str(date.hour)+str(date.minute)+str(random.randint(1000000000, 9999999999))
+            invoice = str(random.randint(100, 999))+str(date.year)+str(date.month)+str(date.day)+str(date.hour)+str(date.minute)+str(random.randint(10,99))
             duplicate_number = models.PaymentGateway.objects.filter(invoice=invoice).count() ==0
 
         return invoice
@@ -42,7 +42,6 @@ class PasargadPaymentGateway:
         response = requests.post(url, json=data)
         if response.status_code == 200 and response.json()['resultCode'] == 0:
             self.token = response.json()['token']
-            # print(f"Token received: {self.token}")
         else:
             raise Exception(f"Error getting token: {response.json()}")
 
@@ -105,8 +104,12 @@ class PasargadPaymentGateway:
             "urlId": url_id
         }
         response = requests.post(url, json=data, headers=headers)
+        print('-'*15)
+        print(response.json())
         if response.status_code == 200 and response.json()['resultCode'] == 0:
             return response.json()['data']
+        elif response.json()['resultCode'] in [13046]:
+            return response.json()
         else:
             raise Exception(f"Error confirming transaction: {response.json()}")
 
@@ -129,7 +132,7 @@ class PasargadPaymentGateway:
             "urlId": url_id
         }
         response = requests.post(url, json=data, headers=headers)
-        if response.status_code == 200 and response.json()['resultCode'] == 0:
+        if response.status_code < 300 or (response.json()['resultCode'] in [0,13046]):
             return response.json()['data']
         else:
             raise Exception(f"Error verifying transaction: {response.json()}")
@@ -166,6 +169,7 @@ class PasargadPaymentGateway:
         :raises: Exception در صورت عدم موفقیت در استعلام وضعیت تراکنش
         :returns: وضعیت فعلی تراکنش
         """
+        self.get_token()
         if not self.token:
             raise Exception("Token is required. Please call get_token() first.")
         
@@ -175,7 +179,7 @@ class PasargadPaymentGateway:
             "invoiceId": invoice
         }
         response = requests.post(url, json=data, headers=headers)
-        if response.status_code == 200 and response.json()['resultCode'] == 0:
-            return response.json()['data']
+        if response.status_code == 200:
+            return response.json().get('data',{'status':response.json().get('resultCode')})
         else:
             raise Exception(f"Error inquiring transaction: {response.json()}")
